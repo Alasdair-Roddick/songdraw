@@ -1,0 +1,14 @@
+node_modules
+.next
+out
+.git
+.env
+.env.*
+!.env.example
+Dockerfile
+docker-compose.yml
+docker
+GamePlan.md
+AGENTS.md
+CLAUDE.md
+README.md
