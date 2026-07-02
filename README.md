@@ -1,4 +1,4 @@
-# Song Game
+# SongDraw
 
 Daily "whose song is this?" for a private friend group. Self-hosted, no Spotify, no OAuth.
 See [GamePlan.md](./GamePlan.md) for the full product spec, data model, and milestones.
