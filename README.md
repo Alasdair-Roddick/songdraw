@@ -1,36 +1,38 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Song Game
 
-## Getting Started
+Daily "whose song is this?" for a private friend group. Self-hosted, no Spotify, no OAuth.
+See [GamePlan.md](./GamePlan.md) for the full product spec, data model, and milestones.
 
-First, run the development server:
+## Stack
+
+Next.js (App Router, TypeScript, Tailwind) full-stack app, Postgres, RustFS (profile picture storage), and a cron sidecar for the daily draw. Package manager is bun.
+
+## Local development
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
+bun install
 bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3000](http://localhost:3000).
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+This runs the app alone — for auth, uploads, or the draw job you need the rest of the stack (below).
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Full stack (Docker Compose)
 
-## Learn More
+```bash
+cp .env.example .env   # then fill in real values
+docker compose up -d
+```
 
-To learn more about Next.js, take a look at the following resources:
+Services:
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+- `app` — the Next.js app, built via the root `Dockerfile` (bun for install/build, standalone Node output at runtime)
+- `db` — Postgres 16
+- `rustfs` — S3-compatible object storage for profile pictures, console at `:9011`
+- `cron` — daily draw trigger (`docker/cron`), fires `POST /api/internal/draw` at midnight Australia/Adelaide
+- `ntfy` — notifications (`song-pool-dry`, `song-draw-failed`, `song-new-member` topics)
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+Ports are remapped from their defaults where they'd collide with other services on the host — check `docker-compose.yml` for the current mapping.
 
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+In production, Traefik (already running in the homelab) fronts the app; this compose file doesn't set up its own reverse proxy.

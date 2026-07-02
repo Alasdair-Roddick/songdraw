@@ -1,0 +1,152 @@
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: songdraw-app
+    env_file:
+      - .env
+    depends_on:
+      db:
+        condition: service_healthy
+      rustfs:
+        condition: service_healthy
+    networks:
+      - internal
+      - proxy
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://127.0.0.1:3000/"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+    restart: unless-stopped
+    labels:
+      - traefik.enable=true
+      - traefik.docker.network=proxy
+      - traefik.http.routers.songdraw-app.rule=Host(`song.roddickshare.space`)
+      - traefik.http.routers.songdraw-app.entrypoints=web
+      - traefik.http.services.songdraw-app.loadbalancer.server.port=3000
+
+  db:
+    image: postgres:16-alpine
+    container_name: songdraw-db
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-songdraw}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-songdraw}
+      POSTGRES_DB: ${POSTGRES_DB:-songdraw}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    networks:
+      - internal
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-songdraw}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+  # Single volume, single node: RustFS's own multi-volume example expects
+  # each volume on a distinct physical disk (for erasure coding) and refuses
+  # to start when they share one, which is the case on a single-disk host.
+  rustfs:
+    image: rustfs/rustfs:latest
+    container_name: songdraw-rustfs
+    security_opt:
+      - "no-new-privileges:true"
+    environment:
+      RUSTFS_VOLUMES: /data/rustfs
+      RUSTFS_ADDRESS: 0.0.0.0:9000
+      RUSTFS_CONSOLE_ADDRESS: 0.0.0.0:9001
+      RUSTFS_CONSOLE_ENABLE: "true"
+      RUSTFS_ACCESS_KEY: ${RUSTFS_ACCESS_KEY:-songdraw}
+      RUSTFS_SECRET_KEY: ${RUSTFS_SECRET_KEY:-songdraw-dev-secret}
+    volumes:
+      - rustfs_data:/data/rustfs
+      - rustfs_logs:/app/logs
+    depends_on:
+      rustfs-permissions:
+        condition: service_completed_successfully
+    networks:
+      - internal
+      - proxy
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:9000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    restart: unless-stopped
+    labels:
+      - traefik.enable=true
+      - traefik.docker.network=proxy
+      - traefik.http.routers.songdraw-rustfs-api.rule=Host(`storage.roddickshare.space`)
+      - traefik.http.routers.songdraw-rustfs-api.entrypoints=web
+      - traefik.http.routers.songdraw-rustfs-api.service=songdraw-rustfs-api
+      - traefik.http.services.songdraw-rustfs-api.loadbalancer.server.port=9000
+      - traefik.http.routers.songdraw-rustfs-console.rule=Host(`storage-console.roddickshare.space`)
+      - traefik.http.routers.songdraw-rustfs-console.entrypoints=web
+      - traefik.http.routers.songdraw-rustfs-console.service=songdraw-rustfs-console
+      - traefik.http.services.songdraw-rustfs-console.loadbalancer.server.port=9001
+
+  # RustFS runs as uid/gid 10001:10001; this fixes the named volume's
+  # ownership once before the main container starts, then exits.
+  rustfs-permissions:
+    image: alpine
+    container_name: songdraw-rustfs-permissions
+    volumes:
+      - rustfs_data:/data
+      - rustfs_logs:/logs
+    command: >
+      sh -c "chown -R 10001:10001 /data /logs"
+    restart: "no"
+
+  cron:
+    build:
+      context: ./docker/cron
+    container_name: songdraw-cron
+    environment:
+      APP_URL: http://app:3000
+      CRON_TOKEN: ${CRON_TOKEN:-changeme}
+    depends_on:
+      - app
+    networks:
+      - internal
+    restart: unless-stopped
+
+  # Notification service — song-pool-dry / song-draw-failed / song-new-member
+  # topics per GamePlan.md §3. Public so the ntfy mobile app can subscribe
+  # over the internet, not just from containers on this host.
+  ntfy:
+    image: binwiederhier/ntfy
+    container_name: songdraw-ntfy
+    command: serve
+    volumes:
+      - ntfy_cache:/var/cache/ntfy
+    networks:
+      - internal
+      - proxy
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://127.0.0.1:80/v1/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    restart: unless-stopped
+    labels:
+      - traefik.enable=true
+      - traefik.docker.network=proxy
+      - traefik.http.routers.songdraw-ntfy.rule=Host(`ntfy.roddickshare.space`)
+      - traefik.http.routers.songdraw-ntfy.entrypoints=web
+      - traefik.http.services.songdraw-ntfy.loadbalancer.server.port=80
+
+volumes:
+  pgdata:
+  rustfs_data:
+  rustfs_logs:
+  ntfy_cache:
+
+networks:
+  internal:
+  proxy:
+    external: true
