@@ -112,6 +112,15 @@ export function SongSearch({
 		audioRef.current?.pause();
 		setPlayingId(null);
 		setProgress(0);
+
+		// Caching is this component's job, not each caller's — every consumer
+		// of SongSearch gets it for free.
+		fetch("/api/tracks", {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify(selectedTrack),
+		});
+
 		onConfirm?.(selectedTrack);
 	}
 

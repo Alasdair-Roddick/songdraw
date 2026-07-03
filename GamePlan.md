@@ -102,7 +102,7 @@ DONEISH - **M2-4 Search UX** — debounced search box, result cards with preview
 - **M3-1 Create game** — owner becomes member; must attach first submission during creation. *AC: game exists with a one-song pool.*
 - **M3-2 Invite links** — 24h expiry, revoke/regenerate, used_count. *AC: expired link shows "ask for a fresh link" page.*
 - **M3-3 Join flow** — link → auth (if needed) → pick display name → **submit first song** → member. *AC: cold join on a phone, including song pick, under two minutes.*
-- **M3-4 Duplicate rule** — reject already-pooled/played tracks at submission with friendly copy. *AC: second submission of the same track fails gracefully.*
+- **M3-4 Duplicate rule** — reject already played not pooled as if it was pooled and not played that means they no one every saw it except from the user that requested it tracks from user not from all users (could add some fun to the game) - this will also be limited so that after some time they can play the same song again - at submission with friendly copy. *AC: second submission of the same track fails gracefully.*
 - **M3-5 Game home (pre-round)** — members, own pooled songs (private to you), "first round at midnight" state. *AC: you can see your banked songs; you cannot see anyone else's.*
 
 ### M4 — Round engine (weekend 4)
@@ -144,6 +144,8 @@ DONEISH - **M2-4 Search UX** — debounced search box, result cards with preview
 ## 7. Stretch Goals
 
 1. Users can be a part of more than one game - home game, office game, friend group 1 game, friend group 2 game
+
+2. Track if a song was played count, that way on the frontend we can show the most played song across the whole app
 
 ## 8. Risks (now pleasantly boring)
 

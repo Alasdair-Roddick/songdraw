@@ -32,7 +32,7 @@ export class ITunesProvider implements MusicProvider {
 			title: item.trackName,
 			artist: item.artistName,
 			album: item.collectionName,
-			artworkUrl: item.artworkUrl100?.replace("100x100", "600x600"),
+			artworkUrl: item.artworkUrl100?.replace("100x100", "1000x1000"),
 			previewUrl: item.previewUrl,
 		}));
 	}
