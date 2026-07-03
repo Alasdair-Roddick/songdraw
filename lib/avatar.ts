@@ -3,5 +3,5 @@ export function randomAvatarSeed() {
 }
 
 export function avatarUrl(seed: string) {
-	return `https://api.dicebear.com/9.x/bottts/svg?seed=${encodeURIComponent(seed)}`;
+	return `https://api.dicebear.com/10.x/lorelei/svg?seed=${encodeURIComponent(seed)}`;
 }

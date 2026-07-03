@@ -53,6 +53,7 @@ export function SettingsDialog({
 	const fileInputRef = useRef<HTMLInputElement>(null);
 
 	const [avatarUploading, setAvatarUploading] = useState(false);
+	const [avatarShuffling, setAvatarShuffling] = useState(false);
 	const [avatarError, setAvatarError] = useState<string | null>(null);
 
 	const [name, setName] = useState(initialName);
@@ -88,6 +89,19 @@ export function SettingsDialog({
 		if (!res.ok) {
 			const body = await res.json().catch(() => null);
 			setAvatarError(body?.error ?? "Upload failed — try again.");
+			return;
+		}
+		router.refresh();
+	}
+
+	async function handleAvatarShuffle() {
+		setAvatarError(null);
+		setAvatarShuffling(true);
+		const res = await fetch("/api/avatar/shuffle", { method: "POST" });
+		setAvatarShuffling(false);
+		if (!res.ok) {
+			const body = await res.json().catch(() => null);
+			setAvatarError(body?.error ?? "Couldn't shuffle avatar — try again.");
 			return;
 		}
 		router.refresh();
@@ -171,15 +185,26 @@ export function SettingsDialog({
 								className="hidden"
 								onChange={handleAvatarChange}
 							/>
-							<Button
-								type="button"
-								variant="outline"
-								size="sm"
-								disabled={avatarUploading}
-								onClick={() => fileInputRef.current?.click()}
-							>
-								{avatarUploading ? "Uploading…" : "Change avatar"}
-							</Button>
+							<div className="flex flex-col gap-1.5">
+								<Button
+									type="button"
+									variant="outline"
+									size="sm"
+									disabled={avatarUploading || avatarShuffling}
+									onClick={() => fileInputRef.current?.click()}
+								>
+									{avatarUploading ? "Uploading…" : "Change avatar"}
+								</Button>
+								<Button
+									type="button"
+									variant="ghost"
+									size="sm"
+									disabled={avatarUploading || avatarShuffling}
+									onClick={handleAvatarShuffle}
+								>
+									{avatarShuffling ? "Shuffling…" : "Shuffle avatar"}
+								</Button>
+							</div>
 							{avatarError && (
 								<p className="text-sm text-destructive">{avatarError}</p>
 							)}
