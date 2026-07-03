@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 
 const AUTH_PAGES = ["/login", "/signup"];
+const PROTECTED_PREFIXES = ["/home", "/search"];
 const SESSION_COOKIES = [
 	"better-auth.session_token",
 	"__Secure-better-auth.session_token",
@@ -17,7 +18,10 @@ export async function proxy(request: NextRequest) {
 	// /home <-> /login.
 	const session = await auth.api.getSession({ headers: request.headers });
 
-	if (pathname.startsWith("/home") && !session) {
+	const isProtected = PROTECTED_PREFIXES.some((prefix) =>
+		pathname.startsWith(prefix),
+	);
+	if (isProtected && !session) {
 		const response = NextResponse.redirect(new URL("/login", request.url));
 		for (const name of SESSION_COOKIES) response.cookies.delete(name);
 		return response;
@@ -31,5 +35,5 @@ export async function proxy(request: NextRequest) {
 }
 
 export const config = {
-	matcher: ["/home/:path*", "/login", "/signup"],
+	matcher: ["/home/:path*", "/search/:path*", "/login", "/signup"],
 };

@@ -1,7 +1,18 @@
 "use client";
 
+import {
+	CheckIcon,
+	DicesIcon,
+	LoaderCircleIcon,
+	MailIcon,
+	UploadIcon,
+	UserIcon,
+} from "lucide-react";
+import { motion } from "motion/react";
 import { useRouter } from "next/navigation";
 import { useRef, useState } from "react";
+import { PasswordInput } from "@/components/password-input";
+import { PasswordStrengthMeter } from "@/components/password-strength";
 import {
 	AlertDialog,
 	AlertDialogCancel,
@@ -17,7 +28,6 @@ import { Button } from "@/components/ui/button";
 import {
 	Dialog,
 	DialogContent,
-	DialogDescription,
 	DialogHeader,
 	DialogTitle,
 } from "@/components/ui/dialog";
@@ -34,6 +44,28 @@ function initialsFor(name: string) {
 		.slice(0, 2)
 		.join("")
 		.toUpperCase();
+}
+
+function SectionLabel({ children }: { children: React.ReactNode }) {
+	return (
+		<span className="font-mono text-xs font-semibold tracking-widest text-muted-foreground uppercase">
+			{children}
+		</span>
+	);
+}
+
+function ErrorText({ error }: { error: string | null }) {
+	if (!error) return null;
+	return (
+		<motion.p
+			key={error}
+			animate={{ x: [0, -6, 6, -3, 3, 0] }}
+			transition={{ duration: 0.35 }}
+			className="text-sm text-destructive"
+		>
+			{error}
+		</motion.p>
+	);
 }
 
 export function SettingsDialog({
@@ -163,151 +195,179 @@ export function SettingsDialog({
 
 	return (
 		<Dialog open={open} onOpenChange={onOpenChange}>
-			<DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-md">
+			<DialogContent
+				className="max-h-[85vh] overflow-y-auto rounded-none border-2 border-foreground sm:max-w-md"
+				aria-describedby={undefined}
+			>
 				<DialogHeader>
-					<DialogTitle>Settings</DialogTitle>
-					<DialogDescription>
-						Manage your profile and account.
-					</DialogDescription>
+					<DialogTitle className="font-black tracking-tight uppercase">
+						Settings
+					</DialogTitle>
 				</DialogHeader>
 
-				<div className="flex flex-col gap-6">
+				<div className="flex flex-col gap-5">
 					<div className="flex items-center gap-4">
-						<Avatar className="size-16">
-							{image && <AvatarImage src={image} alt={name} />}
-							<AvatarFallback>{initialsFor(name)}</AvatarFallback>
-						</Avatar>
+						<input
+							ref={fileInputRef}
+							type="file"
+							accept="image/jpeg,image/png,image/webp"
+							className="hidden"
+							onChange={handleAvatarChange}
+						/>
+						<motion.div
+							key={image ?? "fallback"}
+							initial={{ scale: 0.8, opacity: 0.5 }}
+							animate={{ scale: 1, opacity: 1 }}
+							transition={{ type: "spring", stiffness: 300, damping: 20 }}
+						>
+							<Avatar className="size-16 ring-2 ring-foreground">
+								{image && <AvatarImage src={image} alt={name} />}
+								<AvatarFallback>{initialsFor(name)}</AvatarFallback>
+							</Avatar>
+						</motion.div>
 						<div className="flex flex-col gap-1.5">
-							<input
-								ref={fileInputRef}
-								type="file"
-								accept="image/jpeg,image/png,image/webp"
-								className="hidden"
-								onChange={handleAvatarChange}
-							/>
-							<div className="flex flex-col gap-1.5">
-								<Button
-									type="button"
-									variant="outline"
-									size="sm"
-									disabled={avatarUploading || avatarShuffling}
-									onClick={() => fileInputRef.current?.click()}
-								>
-									{avatarUploading ? "Uploading…" : "Change avatar"}
-								</Button>
-								<Button
-									type="button"
-									variant="ghost"
-									size="sm"
-									disabled={avatarUploading || avatarShuffling}
-									onClick={handleAvatarShuffle}
-								>
-									{avatarShuffling ? "Shuffling…" : "Shuffle avatar"}
-								</Button>
-							</div>
-							{avatarError && (
-								<p className="text-sm text-destructive">{avatarError}</p>
-							)}
+							<Button
+								type="button"
+								variant="outline"
+								size="sm"
+								disabled={avatarUploading || avatarShuffling}
+								onClick={() => fileInputRef.current?.click()}
+							>
+								{avatarUploading ? (
+									<LoaderCircleIcon className="animate-spin" />
+								) : (
+									<UploadIcon />
+								)}
+								{avatarUploading ? "Uploading…" : "Upload photo"}
+							</Button>
+							<Button
+								type="button"
+								variant="ghost"
+								size="sm"
+								disabled={avatarUploading || avatarShuffling}
+								onClick={handleAvatarShuffle}
+							>
+								{avatarShuffling ? (
+									<LoaderCircleIcon className="animate-spin" />
+								) : (
+									<DicesIcon />
+								)}
+								{avatarShuffling ? "Shuffling…" : "Shuffle"}
+							</Button>
 						</div>
 					</div>
+					<ErrorText error={avatarError} />
 
 					<Separator />
 
 					<div className="flex flex-col gap-2">
 						<Label htmlFor="settings-name">Display name</Label>
 						<div className="flex gap-2">
-							<Input
-								id="settings-name"
-								value={name}
-								onChange={(e) => setName(e.target.value)}
-							/>
+							<div className="relative flex-1">
+								<UserIcon className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
+								<Input
+									id="settings-name"
+									className="h-10 pl-9"
+									value={name}
+									onChange={(e) => setName(e.target.value)}
+								/>
+							</div>
 							<Button
 								type="button"
 								variant="outline"
-								disabled={nameSaving || name === initialName}
+								size="lg"
+								disabled={nameSaving || !name.trim() || name === initialName}
 								onClick={handleNameSave}
 							>
+								{nameSaving && <LoaderCircleIcon className="animate-spin" />}
 								Save
 							</Button>
 						</div>
-						{nameError && (
-							<p className="text-sm text-destructive">{nameError}</p>
-						)}
+						<ErrorText error={nameError} />
 					</div>
 
 					<div className="flex flex-col gap-2">
 						<Label htmlFor="settings-email">Email</Label>
 						<div className="flex gap-2">
-							<Input
-								id="settings-email"
-								type="email"
-								value={email}
-								onChange={(e) => setEmail(e.target.value)}
-							/>
+							<div className="relative flex-1">
+								<MailIcon className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
+								<Input
+									id="settings-email"
+									type="email"
+									className="h-10 pl-9"
+									value={email}
+									onChange={(e) => setEmail(e.target.value)}
+								/>
+							</div>
 							<Button
 								type="button"
 								variant="outline"
-								disabled={emailSaving || email === initialEmail}
+								size="lg"
+								disabled={
+									emailSaving || !email.trim() || email === initialEmail
+								}
 								onClick={handleEmailSave}
 							>
+								{emailSaving && <LoaderCircleIcon className="animate-spin" />}
 								Save
 							</Button>
 						</div>
-						{emailError && (
-							<p className="text-sm text-destructive">{emailError}</p>
-						)}
+						<ErrorText error={emailError} />
 					</div>
 
 					<Separator />
 
 					<div className="flex flex-col gap-2">
-						<Label htmlFor="settings-current-password">Change password</Label>
-						<Input
+						<SectionLabel>Change password</SectionLabel>
+						<PasswordInput
 							id="settings-current-password"
-							type="password"
 							placeholder="Current password"
 							autoComplete="current-password"
 							value={currentPassword}
 							onChange={(e) => setCurrentPassword(e.target.value)}
 						/>
-						<Input
-							type="password"
+						<PasswordInput
+							id="settings-new-password"
 							placeholder="New password"
 							autoComplete="new-password"
 							minLength={8}
 							value={newPassword}
 							onChange={(e) => setNewPassword(e.target.value)}
 						/>
+						<PasswordStrengthMeter password={newPassword} />
 						<Button
 							type="button"
 							variant="outline"
 							disabled={passwordSaving || !currentPassword || !newPassword}
 							onClick={handlePasswordSave}
 						>
+							{passwordSaving && <LoaderCircleIcon className="animate-spin" />}
 							{passwordSaving ? "Saving…" : "Update password"}
 						</Button>
-						{passwordError && (
-							<p className="text-sm text-destructive">{passwordError}</p>
-						)}
+						<ErrorText error={passwordError} />
 						{passwordSuccess && (
-							<p className="text-sm text-muted-foreground">Password updated.</p>
+							<motion.p
+								initial={{ opacity: 0, y: -4 }}
+								animate={{ opacity: 1, y: 0 }}
+								className="flex items-center gap-1.5 text-sm text-emerald-600 dark:text-emerald-400"
+							>
+								<CheckIcon className="size-4" />
+								Password updated
+							</motion.p>
 						)}
 					</div>
 
 					<Separator />
 
-					<div className="flex flex-col gap-2">
-						<Label>Delete account</Label>
-						<p className="text-sm text-muted-foreground">
-							Permanently deletes your account. This can't be undone.
-						</p>
+					<div className="flex flex-col gap-3 border-2 border-destructive p-4">
+						<SectionLabel>Danger zone</SectionLabel>
 						<AlertDialog>
 							<AlertDialogTrigger asChild>
 								<Button type="button" variant="destructive">
 									Delete account
 								</Button>
 							</AlertDialogTrigger>
-							<AlertDialogContent>
+							<AlertDialogContent className="rounded-none border-2 border-foreground">
 								<AlertDialogHeader>
 									<AlertDialogTitle>Delete your account?</AlertDialogTitle>
 									<AlertDialogDescription>
@@ -315,16 +375,13 @@ export function SettingsDialog({
 										Enter your password to confirm.
 									</AlertDialogDescription>
 								</AlertDialogHeader>
-								<Input
-									type="password"
+								<PasswordInput
 									placeholder="Password"
 									autoComplete="current-password"
 									value={deletePassword}
 									onChange={(e) => setDeletePassword(e.target.value)}
 								/>
-								{deleteError && (
-									<p className="text-sm text-destructive">{deleteError}</p>
-								)}
+								<ErrorText error={deleteError} />
 								<AlertDialogFooter>
 									<AlertDialogCancel>Cancel</AlertDialogCancel>
 									<Button
@@ -333,6 +390,7 @@ export function SettingsDialog({
 										disabled={deleting || !deletePassword}
 										onClick={handleDeleteAccount}
 									>
+										{deleting && <LoaderCircleIcon className="animate-spin" />}
 										{deleting ? "Deleting…" : "Delete account"}
 									</Button>
 								</AlertDialogFooter>

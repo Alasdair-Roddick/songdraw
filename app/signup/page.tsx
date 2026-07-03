@@ -4,10 +4,7 @@ import {
 	ArrowLeftIcon,
 	ArrowRightIcon,
 	DicesIcon,
-	EyeIcon,
-	EyeOffIcon,
 	LoaderCircleIcon,
-	LockIcon,
 	MailIcon,
 	UploadIcon,
 } from "lucide-react";
@@ -16,6 +13,8 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useRef, useState } from "react";
 import { AuthShell } from "@/components/auth/auth-shell";
+import { PasswordInput } from "@/components/password-input";
+import { PasswordStrengthMeter } from "@/components/password-strength";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import {
@@ -43,23 +42,6 @@ const stepVariants = {
 	exit: (dir: number) => ({ opacity: 0, x: dir * -32 }),
 };
 
-const STRENGTH = [
-	{ label: "Weak", className: "bg-destructive" },
-	{ label: "Okay", className: "bg-amber-500" },
-	{ label: "Good", className: "bg-lime-500" },
-	{ label: "Strong", className: "bg-emerald-500" },
-];
-
-function passwordStrength(pw: string) {
-	if (!pw) return 0;
-	let score = 0;
-	if (pw.length >= 8) score++;
-	if (pw.length >= 12) score++;
-	if (/[a-z]/.test(pw) && /[A-Z]/.test(pw)) score++;
-	if (/\d/.test(pw) || /[^a-zA-Z0-9]/.test(pw)) score++;
-	return Math.max(1, score);
-}
-
 function makeSeeds() {
 	return Array.from({ length: 6 }, () => randomAvatarSeed());
 }
@@ -72,7 +54,6 @@ export default function SignupPage() {
 
 	const [email, setEmail] = useState("");
 	const [password, setPassword] = useState("");
-	const [showPassword, setShowPassword] = useState(false);
 	const [name, setName] = useState("");
 
 	const [seeds, setSeeds] = useState<string[]>(() => makeSeeds());
@@ -86,7 +67,6 @@ export default function SignupPage() {
 	const activeSeed = selectedSeed ?? seeds[0];
 	const preview =
 		avatarFile && filePreview ? filePreview : avatarUrl(activeSeed);
-	const strength = passwordStrength(password);
 
 	function go(next: number) {
 		setError(null);
@@ -145,20 +125,22 @@ export default function SignupPage() {
 
 	return (
 		<AuthShell>
-			<Card className="w-full">
+			<Card className="w-full rounded-none border-2 border-foreground shadow-[6px_6px_0_0_var(--color-foreground)] ring-0">
 				<CardHeader>
 					<div className="mb-2 flex gap-1.5">
 						{STEP_TITLES.map((title, i) => (
 							<div
 								key={title}
 								className={cn(
-									"h-1 flex-1 rounded-full transition-colors duration-300",
-									i <= step ? "bg-primary" : "bg-muted",
+									"h-1.5 flex-1 transition-colors duration-300",
+									i <= step ? "bg-brand" : "bg-muted",
 								)}
 							/>
 						))}
 					</div>
-					<CardTitle>{STEP_TITLES[step]}</CardTitle>
+					<CardTitle className="text-xl font-black tracking-tight uppercase">
+						{STEP_TITLES[step]}
+					</CardTitle>
 				</CardHeader>
 				<CardContent>
 					<AnimatePresence mode="wait" initial={false} custom={dir}>
@@ -195,53 +177,21 @@ export default function SignupPage() {
 								</div>
 								<div className="flex flex-col gap-2">
 									<Label htmlFor="password">Password</Label>
-									<div className="relative">
-										<LockIcon className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
-										<Input
-											id="password"
-											type={showPassword ? "text" : "password"}
-											autoComplete="new-password"
-											minLength={8}
-											required
-											className="h-10 pr-10 pl-9"
-											value={password}
-											onChange={(e) => setPassword(e.target.value)}
-										/>
-										<Button
-											type="button"
-											variant="ghost"
-											size="icon-sm"
-											className="absolute top-1/2 right-1.5 -translate-y-1/2 text-muted-foreground"
-											aria-label={
-												showPassword ? "Hide password" : "Show password"
-											}
-											onClick={() => setShowPassword((v) => !v)}
-										>
-											{showPassword ? <EyeOffIcon /> : <EyeIcon />}
-										</Button>
-									</div>
-									{password && (
-										<div className="flex items-center gap-2">
-											<div className="flex flex-1 gap-1">
-												{STRENGTH.map((level, i) => (
-													<div
-														key={level.label}
-														className={cn(
-															"h-1 flex-1 rounded-full transition-colors duration-300",
-															i < strength
-																? STRENGTH[strength - 1].className
-																: "bg-muted",
-														)}
-													/>
-												))}
-											</div>
-											<span className="text-xs text-muted-foreground">
-												{STRENGTH[strength - 1].label}
-											</span>
-										</div>
-									)}
+									<PasswordInput
+										id="password"
+										autoComplete="new-password"
+										minLength={8}
+										required
+										value={password}
+										onChange={(e) => setPassword(e.target.value)}
+									/>
+									<PasswordStrengthMeter password={password} />
 								</div>
-								<Button type="submit" size="lg">
+								<Button
+									type="submit"
+									variant="brand"
+									className="h-12 rounded-full text-base"
+								>
 									Continue
 									<ArrowRightIcon />
 								</Button>
@@ -279,13 +229,17 @@ export default function SignupPage() {
 									<Button
 										type="button"
 										variant="outline"
-										size="lg"
+										className="h-12 rounded-full"
 										onClick={() => go(0)}
 									>
 										<ArrowLeftIcon />
 										Back
 									</Button>
-									<Button type="submit" size="lg" className="flex-1">
+									<Button
+										type="submit"
+										variant="brand"
+										className="h-12 flex-1 rounded-full text-base"
+									>
 										Continue
 										<ArrowRightIcon />
 									</Button>
@@ -315,7 +269,7 @@ export default function SignupPage() {
 											damping: 20,
 										}}
 									>
-										<Avatar className="size-20 ring-2 ring-border">
+										<Avatar className="size-20 ring-2 ring-foreground">
 											<AvatarImage src={preview} alt="" />
 											<AvatarFallback>
 												{name.slice(0, 1).toUpperCase()}
@@ -341,7 +295,7 @@ export default function SignupPage() {
 											className={cn(
 												"rounded-full ring-offset-2 ring-offset-card transition-shadow",
 												!avatarFile && seed === activeSeed
-													? "ring-2 ring-primary"
+													? "ring-2 ring-foreground"
 													: "hover:ring-2 hover:ring-muted-foreground/40",
 											)}
 										>
@@ -394,7 +348,7 @@ export default function SignupPage() {
 									<Button
 										type="button"
 										variant="outline"
-										size="lg"
+										className="h-12 rounded-full"
 										onClick={() => go(1)}
 									>
 										<ArrowLeftIcon />
@@ -402,9 +356,9 @@ export default function SignupPage() {
 									</Button>
 									<Button
 										type="submit"
-										size="lg"
+										variant="brand"
 										disabled={loading}
-										className="flex-1"
+										className="h-12 flex-1 rounded-full text-base"
 									>
 										{loading && <LoaderCircleIcon className="animate-spin" />}
 										{loading ? "Signing up…" : "Sign up"}
@@ -414,11 +368,11 @@ export default function SignupPage() {
 						)}
 					</AnimatePresence>
 				</CardContent>
-				<CardFooter className="justify-center gap-1 text-sm text-muted-foreground">
+				<CardFooter className="justify-center gap-1 border-t-2 border-foreground text-sm text-muted-foreground">
 					Have an account?
 					<Link
 						href="/login"
-						className="font-medium text-foreground underline underline-offset-4"
+						className="font-semibold text-foreground underline underline-offset-4"
 					>
 						Log in
 					</Link>

@@ -42,15 +42,18 @@ export function UserMenu({
 					<button
 						type="button"
 						aria-label="Account menu"
-						className="rounded-full outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+						className="rounded-full outline-none focus-visible:ring-3 focus-visible:ring-brand/60"
 					>
-						<Avatar className="size-9">
+						<Avatar className="size-9 ring-2 ring-foreground">
 							{image && <AvatarImage src={image} alt={name} />}
 							<AvatarFallback>{initialsFor(name)}</AvatarFallback>
 						</Avatar>
 					</button>
 				</DropdownMenuTrigger>
-				<DropdownMenuContent align="end">
+				<DropdownMenuContent
+					align="end"
+					className="rounded-none border-2 border-foreground"
+				>
 					<DropdownMenuItem onSelect={() => setSettingsOpen(true)}>
 						Settings
 					</DropdownMenuItem>
