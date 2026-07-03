@@ -11,6 +11,8 @@ services:
         condition: service_healthy
       rustfs:
         condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
     networks:
       - internal
       - proxy
@@ -27,6 +29,25 @@ services:
       - traefik.http.routers.songdraw-app.rule=Host(`song.roddickshare.space`)
       - traefik.http.routers.songdraw-app.entrypoints=web
       - traefik.http.services.songdraw-app.loadbalancer.server.port=3000
+
+  # Runs `drizzle-kit push` against `db` before `app` starts. Idempotent —
+  # a no-op against an up-to-date schema, and fixes a fresh/reset DB
+  # automatically (no need to detect "empty" — pushing is safe either way).
+  migrate:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: builder
+    container_name: songdraw-migrate
+    env_file:
+      - .env
+    command: ["bunx", "drizzle-kit", "push", "--force"]
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - internal
+    restart: "no"
 
   db:
     image: postgres:16-alpine
