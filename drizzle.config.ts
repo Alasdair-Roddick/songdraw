@@ -7,7 +7,7 @@ config({ path: ".env" });
 config({ path: ".env.local", override: true });
 
 export default defineConfig({
-	schema: "./lib/db/schema.ts",
+	schema: ["./lib/db/schema.ts", "./lib/db/track-asset.ts"],
 	out: "./drizzle",
 	dialect: "postgresql",
 	dbCredentials: {
