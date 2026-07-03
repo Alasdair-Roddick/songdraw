@@ -1,17 +1,12 @@
 "use client";
 
-import {
-	EyeIcon,
-	EyeOffIcon,
-	LoaderCircleIcon,
-	LockIcon,
-	MailIcon,
-} from "lucide-react";
+import { LoaderCircleIcon, MailIcon } from "lucide-react";
 import { motion } from "motion/react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { AuthShell } from "@/components/auth/auth-shell";
+import { PasswordInput } from "@/components/password-input";
 import { Button } from "@/components/ui/button";
 import {
 	Card,
@@ -28,7 +23,6 @@ export default function LoginPage() {
 	const router = useRouter();
 	const [email, setEmail] = useState("");
 	const [password, setPassword] = useState("");
-	const [showPassword, setShowPassword] = useState(false);
 	const [error, setError] = useState<string | null>(null);
 	const [loading, setLoading] = useState(false);
 
@@ -49,9 +43,11 @@ export default function LoginPage() {
 
 	return (
 		<AuthShell>
-			<Card className="w-full">
+			<Card className="w-full rounded-none border-2 border-foreground shadow-[6px_6px_0_0_var(--color-foreground)] ring-0">
 				<CardHeader>
-					<CardTitle>Welcome back</CardTitle>
+					<CardTitle className="text-xl font-black tracking-tight uppercase">
+						Welcome back
+					</CardTitle>
 				</CardHeader>
 				<CardContent>
 					<form onSubmit={handleSubmit} className="flex flex-col gap-4">
@@ -73,28 +69,13 @@ export default function LoginPage() {
 						</div>
 						<div className="flex flex-col gap-2">
 							<Label htmlFor="password">Password</Label>
-							<div className="relative">
-								<LockIcon className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
-								<Input
-									id="password"
-									type={showPassword ? "text" : "password"}
-									autoComplete="current-password"
-									required
-									className="h-10 pr-10 pl-9"
-									value={password}
-									onChange={(e) => setPassword(e.target.value)}
-								/>
-								<Button
-									type="button"
-									variant="ghost"
-									size="icon-sm"
-									className="absolute top-1/2 right-1.5 -translate-y-1/2 text-muted-foreground"
-									aria-label={showPassword ? "Hide password" : "Show password"}
-									onClick={() => setShowPassword((v) => !v)}
-								>
-									{showPassword ? <EyeOffIcon /> : <EyeIcon />}
-								</Button>
-							</div>
+							<PasswordInput
+								id="password"
+								autoComplete="current-password"
+								required
+								value={password}
+								onChange={(e) => setPassword(e.target.value)}
+							/>
 						</div>
 						{error && (
 							<motion.p
@@ -106,17 +87,22 @@ export default function LoginPage() {
 								{error}
 							</motion.p>
 						)}
-						<Button type="submit" size="lg" disabled={loading}>
+						<Button
+							type="submit"
+							variant="brand"
+							className="h-12 rounded-full text-base"
+							disabled={loading}
+						>
 							{loading && <LoaderCircleIcon className="animate-spin" />}
 							{loading ? "Logging in…" : "Log in"}
 						</Button>
 					</form>
 				</CardContent>
-				<CardFooter className="justify-center gap-1 text-sm text-muted-foreground">
+				<CardFooter className="justify-center gap-1 border-t-2 border-foreground text-sm text-muted-foreground">
 					New here?
 					<Link
 						href="/signup"
-						className="font-medium text-foreground underline underline-offset-4"
+						className="font-semibold text-foreground underline underline-offset-4"
 					>
 						Create an account
 					</Link>
