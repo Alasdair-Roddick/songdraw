@@ -1,4 +1,4 @@
-# Song Game v2 — Project Plan
+# SongDraw v2 — Project Plan
 *Daily "whose song is this?" for a private friend group. No Spotify. No OAuth. No user cap.*
 *Self-hosted at `song.roddickshare.space`*
 
@@ -140,7 +140,12 @@ S3-compatible, self-hosted, one more container. Uploaded avatars live in RustFS 
 7. Answers never serialized pre-guess. Scoring server-side only.
 8. Single Next.js deployable + cron sidecar (unless ADR-001 says otherwise). No queues, no WebSockets, until measured pain.
 
-## 7. Risks (now pleasantly boring)
+
+## 7. Stretch Goals
+
+1. Users can be a part of more than one game - home game, office game, friend group 1 game, friend group 2 game
+
+## 8. Risks (now pleasantly boring)
 
 - **iTunes/Deezer preview coverage:** some tracks lack previews. Mitigation: metadata-only rounds still work; show "no preview" gracefully; provider fallback (M2-2).
 - **Forgotten passwords:** no email flow exists yet to recover a lost password. Mitigation: sessions are ~1 year so re-login is rare; add a password-reset email path if it becomes a real pain point.
