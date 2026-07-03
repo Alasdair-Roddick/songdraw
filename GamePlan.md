@@ -82,21 +82,21 @@ S3-compatible, self-hosted, one more container. Uploaded avatars live in RustFS 
 ## 5. Milestones & tickets
 
 ### M0 — Foundations (weekend 1)
-- **M0-1 Stack decision + repo** — lock Next.js-only vs FastAPI variant; scaffold; README. *AC: decision recorded in /docs/adr-001; `docker compose up` serves hello-world.*
-- **M0-2 Compose stack** — app, postgres, rustfs, cron, ntfy; healthchecks; env templating. *AC: green on the homelab.*
-- **M0-3 Domain + routing** — through existing tunnel; HTTPS externally. *AC: reachable from mobile data.*
-- **M0-4 CI + migrations** — lint/typecheck/test on PR; migration tool wired with baseline. *AC: red PR on lint fail; `migrate` idempotent.*
+DONE - **M0-1 Stack decision + repo** — lock Next.js-only vs FastAPI variant; scaffold; README. *AC: decision recorded in /docs/adr-001; `docker compose up` serves hello-world.*
+DONE - **M0-2 Compose stack** — app, postgres, rustfs, cron, ntfy; healthchecks; env templating. *AC: green on the homelab.*
+DONE - **M0-3 Domain + routing** — through existing tunnel; HTTPS externally. *AC: reachable from mobile data.*
+DONE - **M0-4 CI + migrations** — lint/typecheck/test on PR; migration tool wired with baseline. *AC: red PR on lint fail; `migrate` idempotent.*
 
 ### M1 — Identity (weekend 1–2, it's small now)
-- **M1-1 Signup/login** — Better Auth email+password, ~1-year sessions refreshed on activity. *AC: sign up on a phone with email/password/name; session survives browser restart and re-opening weeks later.*
-- **M1-2 Profile basics** — display name (captured at signup, editable after), generated avatar (dicebear-style) by default with optional upload to RustFS. *AC: name/avatar editable and shown everywhere a member appears; uploaded picture persists across restarts.*
-- **M1-3 Session middleware** — all game routes authed; internal cron endpoint token-protected. *AC: anonymous API call 401; cron endpoint rejects missing token.*
+DONE - **M1-1 Signup/login** — Better Auth email+password, ~1-year sessions refreshed on activity. *AC: sign up on a phone with email/password/name; session survives browser restart and re-opening weeks later.*
+DONE - **M1-2 Profile basics** — display name (captured at signup, editable after), generated avatar (dicebear-style) by default with optional upload to RustFS. *AC: name/avatar editable and shown everywhere a member appears; uploaded picture persists across restarts.*
+DONE - **M1-3 Session middleware** — all game routes authed; internal cron endpoint token-protected. *AC: anonymous API call 401; cron endpoint rejects missing token.*
 
 ### M2 — Music search & TrackAsset (weekend 2)
-- **M2-1 MusicProvider interface + iTunes impl** — `search(query)` normalised to internal Track shape; server-side proxy route (never call Apple from the browser). *AC: search "the presets" returns art + working 30s previews.*
-- **M2-2 Deezer fallback impl** — same interface; provider chosen by config/health. *AC: flipping an env var swaps providers with zero code change.*
+DONE - **M2-1 MusicProvider interface + iTunes impl** — `search(query)` normalised to internal Track shape; server-side proxy route (never call Apple from the browser). *AC: search "the presets" returns art + working 30s previews.*
+LATER PROBLEM - **M2-2 Deezer fallback impl** — same interface; provider chosen by config/health. *AC: flipping an env var swaps providers with zero code change.*
 - **M2-3 TrackAsset caching** — selecting a search result upserts the asset; gameplay reads only from cache. *AC: kill outbound internet, existing rounds still fully render and play.*
-- **M2-4 Search UX** — debounced search box, result cards with preview-play button. *AC: find and pick a song in <15s on mobile.*
+DONEISH - **M2-4 Search UX** — debounced search box, result cards with preview-play button. *AC: find and pick a song in <15s on mobile.*
 
 ### M3 — Games, invites, join-with-a-song (weekend 3)
 - **M3-1 Create game** — owner becomes member; must attach first submission during creation. *AC: game exists with a one-song pool.*
