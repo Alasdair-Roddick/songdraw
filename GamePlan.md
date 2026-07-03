@@ -6,7 +6,7 @@
 
 ## 1. Product definition
 
-**Premise.** A persistent **Game** is created by one user, who shares an invite link (`/game/join/{uuid}`, valid 24h, re-issuable). Joining requires two things: a display name and **your first song submission**. Once ≥2 members exist, a daily round begins.
+**Premise.** A persistent **Game** is created by one user, who shares an invite link (`/game/join/{uuid}`, valid 24h, re-issuable). Joining requires just a display name — no song required to join. Once a game reaches **3 members**, submission opens and the daily loop begins.
 
 **The daily loop:**
 1. Each day, one pooled song is drawn. Every member (except the submitter) answers one question: **whose song is this?**
@@ -23,13 +23,13 @@
 
 - **Draw:** two-stage. First pick a member uniformly at random from members with ≥1 pooled song, then pick one of their pooled songs at random. Equal daily odds regardless of pool size; banked songs keep hope alive.
 - **Song lifecycle:** `pooled → played → retired`. Played songs never repeat. A leaving member's pool retires with them.
-- **Submission rights:** one submission per completed round (play first, then submit). Plus the mandatory join submission. Unpicked songs roll over.
+- **Submission rights:** one submission per completed round (play first, then submit); submission is closed entirely until the game reaches 3 members. Unpicked songs roll over.
 - **Duplicate rule:** a track already pooled or played in the game can't be submitted again (server rejects with a friendly "someone beat you to it").
 - **Scoring v1:** guesser +100 for correct (single attempt). Submitter +50 per wrong guess. Missed round = 0 and streak reset; banked songs stay pooled.
 - **Streaks:** consecutive days *played* (guessed, or was the submitter). Submitter days count automatically.
 - **Reveal:** immediately after your own guess. Share grid is spoiler-light: `Song #23 🟩 streak 7` / `🟥 streak 0`, no names.
 - **Day boundary:** 00:00 Australia/Adelaide, hard-coded. Round opens at midnight, closes at next midnight; unplayed = missed.
-- **Degenerate cases:** rounds generate with ≥2 members but the guess is only interesting at ≥3 — UI nudges "invite one more." If no member has a pooled song at draw time, the day is skipped and ntfy alerts the owner ("pool is dry").
+- **Degenerate cases:** submission (and therefore the whole daily loop) is locked below 3 members — the pre-round game home nudges "invite N more to unlock." Once unlocked, if no member has a pooled song at draw time (pool exhausted), the day is skipped and ntfy alerts the owner ("pool is dry").
 - **Audio:** the drawn track's 30-second preview (from iTunes/Deezer metadata) is playable on the guess screen. Album art shown. This is flavour, not a dependency — the game works fully on metadata.
 
 ---
@@ -99,9 +99,9 @@ DONE - **M2-3 TrackAsset caching** — selecting a search result upserts the ass
 DONEISH - **M2-4 Search UX** — debounced search box, result cards with preview-play button. *AC: find and pick a song in <15s on mobile.*
 
 ### M3 — Games, invites, join-with-a-song (weekend 3)
-- **M3-1 Create game** — owner becomes member; must attach first submission during creation. *AC: game exists with a one-song pool.*
+- **M3-1 Create game** — owner becomes the sole member; no submission required at creation. *AC: game exists with just the owner as a member.*
 - **M3-2 Invite links** — 24h expiry, revoke/regenerate, used_count. *AC: expired link shows "ask for a fresh link" page.*
-- **M3-3 Join flow** — link → auth (if needed) → pick display name → **submit first song** → member. *AC: cold join on a phone, including song pick, under two minutes.*
+- **M3-3 Join flow** — link → auth (if needed) → pick display name → member. No song required to join; submission unlocks for everyone once the game hits 3 members. *AC: cold join on a phone under a minute.*
 - **M3-4 Duplicate rule** — reject already played not pooled as if it was pooled and not played that means they no one every saw it except from the user that requested it tracks from user not from all users (could add some fun to the game) - this will also be limited so that after some time they can play the same song again - at submission with friendly copy. *AC: second submission of the same track fails gracefully.*
 - **M3-5 Game home (pre-round)** — members, own pooled songs (private to you), "first round at midnight" state. *AC: you can see your banked songs; you cannot see anyone else's.*
 
@@ -133,7 +133,7 @@ DONEISH - **M2-4 Search UX** — debounced search box, result cards with preview
 
 1. No third-party accounts, ever. Music metadata via keyless APIs behind `MusicProvider`.
 2. Better Auth email+password identity; ~1-year sessions; streak durability is a product feature.
-3. Joining requires a song. Playing gates submitting. The pool cannot outrun the players.
+3. Joining requires no song — submission is locked until a game reaches 3 members, then playing gates submitting thereafter. The pool cannot outrun the players.
 4. Two-stage uniform draw; played songs retire; duplicates rejected.
 5. Submitter scores by fooling; their day is the best day, not a bye.
 6. Midnight Adelaide, hard-coded. Reveal after own guess. Spoiler-free share grid.
@@ -151,5 +151,5 @@ DONEISH - **M2-4 Search UX** — debounced search box, result cards with preview
 
 - **iTunes/Deezer preview coverage:** some tracks lack previews. Mitigation: metadata-only rounds still work; show "no preview" gracefully; provider fallback (M2-2).
 - **Forgotten passwords:** no email flow exists yet to recover a lost password. Mitigation: sessions are ~1 year so re-login is rare; add a password-reset email path if it becomes a real pain point.
-- **Small groups:** 2-player games are trivial to guess. Mitigation: UI nudge at <3 members; fool-points still make it playable.
-- **Pool droughts:** if people miss days, tomorrow may have no song. Mitigation: rollover pools, dry-pool alert, and the join-submission floor. Scarcity is also motivation — "we need you back, the pool's empty" is a group-chat message that writes itself.
+- **Small groups:** 2-player games would be trivial to guess. Mitigation: no longer a live risk — submission (and therefore play) is locked entirely below 3 members, so there's no trivial-guess state, just a waiting one.
+- **Pool droughts:** if people miss days, tomorrow may have no song. Mitigation: rollover pools and the dry-pool alert. Scarcity is also motivation — "we need you back, the pool's empty" is a group-chat message that writes itself.
