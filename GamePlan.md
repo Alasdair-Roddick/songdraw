@@ -95,7 +95,7 @@ DONE - **M1-3 Session middleware** — all game routes authed; internal cron end
 ### M2 — Music search & TrackAsset (weekend 2)
 DONE - **M2-1 MusicProvider interface + iTunes impl** — `search(query)` normalised to internal Track shape; server-side proxy route (never call Apple from the browser). *AC: search "the presets" returns art + working 30s previews.*
 LATER PROBLEM - **M2-2 Deezer fallback impl** — same interface; provider chosen by config/health. *AC: flipping an env var swaps providers with zero code change.*
-- **M2-3 TrackAsset caching** — selecting a search result upserts the asset; gameplay reads only from cache. *AC: kill outbound internet, existing rounds still fully render and play.*
+DONE - **M2-3 TrackAsset caching** — selecting a search result upserts the asset; gameplay reads only from cache. *AC: kill outbound internet, existing rounds still fully render and play.*
 DONEISH - **M2-4 Search UX** — debounced search box, result cards with preview-play button. *AC: find and pick a song in <15s on mobile.*
 
 ### M3 — Games, invites, join-with-a-song (weekend 3)
