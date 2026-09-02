@@ -7,8 +7,6 @@ services:
     env_file:
       - .env
     depends_on:
-      db:
-        condition: service_healthy
       migrate:
         condition: service_completed_successfully
     networks:
@@ -28,7 +26,7 @@ services:
       - traefik.http.routers.songdraw-app.entrypoints=web
       - traefik.http.services.songdraw-app.loadbalancer.server.port=3000
 
-  # Runs `drizzle-kit push` against `db` before `app` starts. Idempotent —
+  # Runs `drizzle-kit push` against Supabase before `app` starts. Idempotent —
   # a no-op against an up-to-date schema, and fixes a fresh/reset DB
   # automatically (no need to detect "empty" — pushing is safe either way).
   migrate:
@@ -40,30 +38,9 @@ services:
     env_file:
       - .env
     command: ["bunx", "drizzle-kit", "push", "--force"]
-    depends_on:
-      db:
-        condition: service_healthy
     networks:
       - internal
     restart: "no"
-
-  db:
-    image: postgres:16-alpine
-    container_name: songdraw-db
-    environment:
-      POSTGRES_USER: ${POSTGRES_USER:-songdraw}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-songdraw}
-      POSTGRES_DB: ${POSTGRES_DB:-songdraw}
-    volumes:
-      - pgdata:/var/lib/postgresql/data
-    networks:
-      - internal
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-songdraw}"]
-      interval: 5s
-      timeout: 5s
-      retries: 10
-    restart: unless-stopped
 
   cron:
     build:
@@ -105,7 +82,6 @@ services:
       - traefik.http.services.songdraw-ntfy.loadbalancer.server.port=80
 
 volumes:
-  pgdata:
   ntfy_cache:
 
 networks:
