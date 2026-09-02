@@ -4,7 +4,6 @@ import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { bankSong } from "@/lib/db/bank";
-import { round } from "@/lib/db/round";
 
 export async function DELETE(
 	_request: Request,
@@ -16,24 +15,19 @@ export async function DELETE(
 		return NextResponse.json({ error: "unauthorized" }, { status: 401 });
 	}
 
-	// A song some game has already played belongs to that game's history now —
-	// its round points at this row, so it stops being yours to withdraw.
-	const [played] = await db
-		.select({ id: round.id })
-		.from(round)
-		.where(eq(round.bankSongId, songId))
-		.limit(1);
-	if (played) {
-		return NextResponse.json(
-			{ error: "That one's already been played — it stays." },
-			{ status: 409 },
-		);
-	}
-
+	// A played song has already left the bank and its round points at the row,
+	// so it isn't the caller's to withdraw. Matching on status rather than
+	// checking rounds separately keeps this a single statement.
 	const deleted = await db
 		.delete(bankSong)
 		// Scoping to the caller is what stops one player emptying another's bank.
-		.where(and(eq(bankSong.id, songId), eq(bankSong.userId, session.user.id)))
+		.where(
+			and(
+				eq(bankSong.id, songId),
+				eq(bankSong.userId, session.user.id),
+				eq(bankSong.status, "banked"),
+			),
+		)
 		.returning({ id: bankSong.id });
 
 	if (deleted.length === 0) {

@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { and, asc, eq, lt, notInArray } from "drizzle-orm";
+import { and, asc, eq, lt } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { bankSong } from "@/lib/db/bank";
 import { gameMember } from "@/lib/db/game";
@@ -25,12 +25,12 @@ export type DrawResult =
 	| { status: "dry" };
 
 /**
- * Two-stage uniform draw (GamePlan §4): pick a member who still has an unplayed
+ * Two-stage uniform draw (GamePlan §4): pick a member who still has a banked
  * song, then one of *their* songs. Picking the person first is what keeps daily
  * odds equal regardless of how big anyone's bank is.
  *
- * Banks are per-user and shared across games, so "already played" is scoped to
- * this game only — a track Game A has used is still unheard in Game B.
+ * Drawing consumes the song: it flips to `played`, leaves the owner's bank, and
+ * is never drawn again in any game.
  */
 export async function drawForGame(
 	gameId: string,
@@ -46,12 +46,6 @@ export async function drawForGame(
 			return { status: "exists", roundId: existing[0].id } as const;
 		}
 
-		const usedHere = await tx
-			.select({ bankSongId: round.bankSongId })
-			.from(round)
-			.where(eq(round.gameId, gameId));
-		const used = usedHere.map((row) => row.bankSongId);
-
 		// Ordered so the candidate list is identical on every replay — without
 		// this the seed wouldn't actually make the draw reproducible.
 		const available = await tx
@@ -62,7 +56,8 @@ export async function drawForGame(
 				and(
 					eq(gameMember.gameId, gameId),
 					eq(gameMember.status, "active"),
-					used.length > 0 ? notInArray(bankSong.id, used) : undefined,
+					// Played songs are spent everywhere, not just here.
+					eq(bankSong.status, "banked"),
 				),
 			)
 			.orderBy(asc(gameMember.id), asc(bankSong.id));
@@ -99,8 +94,13 @@ export async function drawForGame(
 			return { status: "exists", roundId: row.id } as const;
 		}
 
-		// No status to flip: the round row *is* the record that this game has
-		// played this song, which is what keeps the bank game-agnostic.
+		// Spend the song in the same transaction, so it can never be drawn twice
+		// — by this game tomorrow or by another game later today.
+		await tx
+			.update(bankSong)
+			.set({ status: "played" })
+			.where(eq(bankSong.id, bankSongId));
+
 		return { status: "created", roundId: created.id } as const;
 	});
 }

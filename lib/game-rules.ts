@@ -6,9 +6,10 @@ export const MIN_MEMBERS = 3;
 // array indices as React keys.
 export const SEATS = ["first", "second", "third"] as const;
 
-// How long a played track is off-limits before someone may bank it again
-// (GamePlan M3-4). Long enough that nobody remembers whose it was.
-export const REPLAY_AFTER_DAYS = 180;
+// A played song leaves your bank for good. You may re-bank the same *track*
+// once this many rounds have been drawn in the game that played it — long
+// enough that nobody remembers it was yours.
+export const REPLAY_AFTER_ROUNDS = 5;
 
 // Scoring v1 (GamePlan §2). A correct guess is worth twice what fooling one
 // person is, so guessing well and bluffing well are both viable.
@@ -24,14 +25,22 @@ export const FOOL_POINTS = 50;
 export const REVEAL_HOUR = 17;
 
 /**
- * The effective reveal hour. Outside production `DEV_REVEAL_HOUR` can push it
- * later (24 = never on the clock), which is the only way to exercise the guess
- * flow when you're testing after 5pm local.
+ * The effective reveal hour.
+ *
+ * Outside production the clock deadline is off by default (24 = never), because
+ * otherwise any dev session after 5pm local finds every round pre-revealed and
+ * the guess flow untestable. Reveal-on-everyone-guessed still works, so the
+ * mechanic is fully exercisable — only the wall-clock cutoff is suspended.
+ *
+ * Set DEV_REVEAL_HOUR to test the deadline itself (e.g. 17 for real behaviour,
+ * or 0 to force everything revealed). Production always uses REVEAL_HOUR.
  */
 export function revealHour() {
-	if (process.env.NODE_ENV !== "production" && process.env.DEV_REVEAL_HOUR) {
-		const hour = Number(process.env.DEV_REVEAL_HOUR);
-		if (Number.isInteger(hour) && hour >= 0 && hour <= 24) return hour;
+	if (process.env.NODE_ENV === "production") return REVEAL_HOUR;
+
+	const override = Number(process.env.DEV_REVEAL_HOUR);
+	if (Number.isInteger(override) && override >= 0 && override <= 24) {
+		return override;
 	}
-	return REVEAL_HOUR;
+	return 24;
 }

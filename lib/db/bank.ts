@@ -1,16 +1,20 @@
 import { relations } from "drizzle-orm";
-import { index, pgTable, text, timestamp, unique } from "drizzle-orm/pg-core";
+import { index, pgTable, text, timestamp } from "drizzle-orm/pg-core";
 import { user } from "./schema";
 import { trackAsset } from "./track-asset";
 
 /**
  * One song bank per person, shared across every game they're in.
  *
- * There is deliberately no per-game status here. "Already played" is a fact
- * about a *game*, not about the song — a track Game A has used is still fresh
- * to Game B, whose members never heard it. So the draw derives that by looking
- * at which bank songs a given game's rounds have already consumed, and this
- * table stays a plain list of what you're holding.
+ * A song is consumed the first time any game draws it: the row flips to
+ * `played` and drops out of both the bank and every future draw. The row itself
+ * stays, because its round still points at it — "removed from the bank" is a
+ * status, not a delete.
+ *
+ * There is deliberately no unique (user, track): the same track may come back
+ * to a bank once REPLAY_AFTER_ROUNDS have passed, so a person can hold several
+ * rows for one track across time. The live-duplicate rule is enforced in the
+ * bank route instead, where the cooldown lives too.
  */
 export const bankSong = pgTable(
 	"bank_song",
@@ -24,12 +28,13 @@ export const bankSong = pgTable(
 		trackId: text("track_id")
 			.notNull()
 			.references(() => trackAsset.id, { onDelete: "restrict" }),
+		// "banked" | "played"
+		status: text("status").notNull().default("banked"),
 		createdAt: timestamp("created_at").defaultNow().notNull(),
 	},
 	(table) => [
-		// You can't hold the same track twice; two different people can.
-		unique().on(table.userId, table.trackId),
-		index("bank_song_user_idx").on(table.userId),
+		index("bank_song_user_status_idx").on(table.userId, table.status),
+		index("bank_song_track_idx").on(table.trackId),
 	],
 );
 

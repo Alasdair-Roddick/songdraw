@@ -5,16 +5,25 @@ picks a member first, then one of *their* banked songs the room hasn't played �
 so bank size never changes your daily odds, it only changes the variety when
 your number comes up.
 
-## Why the bank isn't per-room
+## A song is spent when it's drawn
 
-"Already played" is a fact about a **room**, not about a song. A track Room A
-drew is still completely unheard by Room B, so it stays drawable there. That's
-why `bank_song` carries no status column at all: which rooms have burned a song
-is derived from `round.bank_song_id`, and the draw excludes only the rows that
-*this* room's rounds already used.
+The first time any room draws one of your songs, that row flips to `played`,
+leaves your bank, and is never drawn again — in that room or any other. The row
+itself survives because its round points at it; "removed from the bank" is a
+status, not a delete.
 
-The upshot is you maintain one list instead of one per room, and a good song
-earns its keep across all of them.
+So the bank is one list you maintain for every room, and each song in it is a
+single shot.
+
+## Re-banking the same track
+
+Because a track can legitimately come back later, there is deliberately **no**
+unique `(user_id, track_id)`: you may hold several rows for one track across
+time. What the bank route enforces instead is:
+
+- you can't bank a track you're currently holding, and
+- you can't re-bank one you had played until `REPLAY_AFTER_ROUNDS` (5) further
+  rounds have been drawn in the room that played it.
 
 ## Privacy
 
@@ -31,10 +40,16 @@ makes sense; this is the shared-bank version of M4-5, and it lines up exactly
 with the "all songs guessed" moment the home feed builds toward. Your own
 submitter day doesn't count against you.
 
+Crucially, a round past its reveal doesn't count either. Guessing closes at the
+reveal, so counting those would leave the gate permanently unclearable and lock
+you out of banking until midnight — which is exactly the bug that shipped in the
+first version of this.
+
 `outstandingGuesses()` in `app/api/bank/route.ts` is the single definition, used
 both to gate the POST and to render the locked state.
 
 ## Removing
 
-You can remove a banked song until some room has played it. After that the round
-row points at it and it belongs to that room's history, so the delete is refused.
+You can remove a song while it's still banked. Once played it has already left
+the bank and belongs to a room's history, so the delete matches nothing and is
+refused.
