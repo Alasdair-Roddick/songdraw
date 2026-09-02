@@ -14,8 +14,12 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
+	metadataBase: new URL("https://song.roddickshare.space"),
 	title: "SongDraw",
 	description: "Daily whose-song-is-this for a private friend group.",
+	twitter: {
+		card: "summary_large_image",
+	},
 };
 
 export default function RootLayout({
