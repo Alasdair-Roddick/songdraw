@@ -1,4 +1,4 @@
-import { and, eq } from "drizzle-orm";
+import { and, desc, eq } from "drizzle-orm";
 import { ArrowLeftIcon } from "lucide-react";
 import { headers } from "next/headers";
 import Link from "next/link";
@@ -8,10 +8,13 @@ import { DeleteGameDialog } from "@/components/delete-game-dialog";
 import { InviteMemberDialog } from "@/components/invite-member-dialog";
 import { MemberList } from "@/components/member-list";
 import { PendingInvites } from "@/components/pending-invites";
+import { SongPool } from "@/components/song-pool";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { game, gameInvite, gameMember } from "@/lib/db/game";
 import { user } from "@/lib/db/schema";
+import { submission } from "@/lib/db/submission";
+import { trackAsset } from "@/lib/db/track-asset";
 import { MIN_MEMBERS, SEATS } from "@/lib/game-rules";
 import { activeMembership } from "@/lib/games";
 
@@ -25,7 +28,8 @@ export default async function GamePage({
 	if (!session) redirect("/login");
 
 	// Non-members get a 404, not a 403 — a game's existence isn't public.
-	if (!(await activeMembership(id, session.user.id))) notFound();
+	const viewerMembership = await activeMembership(id, session.user.id);
+	if (!viewerMembership) notFound();
 
 	const [current] = await db
 		.select()
@@ -55,6 +59,27 @@ export default async function GamePage({
 
 	const isOwner = current.ownerId === session.user.id;
 	const needed = MIN_MEMBERS - members.length;
+
+	// Your pool only. Answer secrecy starts here — no query on this page ever
+	// reaches another member's submissions, so there's nothing to leak.
+	const myPool = await db
+		.select({
+			id: submission.id,
+			title: trackAsset.title,
+			artist: trackAsset.artist,
+			artworkUrl: trackAsset.artworkUrl,
+			previewUrl: trackAsset.previewUrl,
+		})
+		.from(submission)
+		.innerJoin(trackAsset, eq(submission.trackId, trackAsset.id))
+		.where(
+			and(
+				eq(submission.gameId, id),
+				eq(submission.memberId, viewerMembership.id),
+				eq(submission.status, "pooled"),
+			),
+		)
+		.orderBy(desc(submission.submittedAt));
 
 	return (
 		<div className="flex flex-1 flex-col">
@@ -103,6 +128,13 @@ export default async function GamePage({
 						</p>
 					</div>
 				</div>
+
+				<SongPool
+					gameId={id}
+					songs={myPool}
+					locked={needed > 0}
+					needed={needed}
+				/>
 
 				<section className="flex flex-col gap-3">
 					<h2 className="font-mono text-xs font-semibold tracking-widest uppercase text-muted-foreground">

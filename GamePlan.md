@@ -24,7 +24,7 @@
 - **Draw:** two-stage. First pick a member uniformly at random from members with ≥1 pooled song, then pick one of their pooled songs at random. Equal daily odds regardless of pool size; banked songs keep hope alive.
 - **Song lifecycle:** `pooled → played → retired`. Played songs never repeat. A leaving member's pool retires with them.
 - **Submission rights:** one submission per completed round (play first, then submit); submission is closed entirely until the game reaches 3 members. Unpicked songs roll over.
-- **Duplicate rule:** a track already pooled or played in the game can't be submitted again (server rejects with a friendly "someone beat you to it").
+- **Duplicate rule:** you can't bank a track you already hold, and nobody can bank one the game has already played (until `REPLAY_AFTER_DAYS`). Two members independently pooling the same *unplayed* track is allowed — nobody has seen it. Server rejects with friendly copy.
 - **Scoring v1:** guesser +100 for correct (single attempt). Submitter +50 per wrong guess. Missed round = 0 and streak reset; banked songs stay pooled.
 - **Streaks:** consecutive days *played* (guessed, or was the submitter). Submitter days count automatically.
 - **Reveal:** immediately after your own guess. Share grid is spoiler-light: `Song #23 🟩 streak 7` / `🟥 streak 0`, no names.
@@ -68,7 +68,7 @@ S3-compatible, zero-egress, no container to run or back up. Uploaded avatars liv
 - **GameMember** — game_id, user_id, joined_at, role, status (active/left).
 - **GameInvite** — id, game_id, inviter_id, invitee_id, status (`pending`/`accepted`/`declined`/`cancelled`), created_at, responded_at. Unique (game_id, invitee_id) — re-inviting someone who declined flips their existing row back to `pending` rather than stacking duplicates.
 - **TrackAsset** — provider (`itunes`/`deezer`), provider_track_id, title, artists, album, artwork_url, preview_url, cached_at. Unique on (provider, provider_track_id).
-- **Submission** — game_id, member_id, track_id, submitted_at, status (`pooled`/`played`/`retired`), played_in_round_id (nullable). Unique (game_id, track_id) enforces the duplicate rule.
+- **Submission** — game_id, member_id, track_id, submitted_at, status (`pooled`/`played`/`retired`), played_in_round_id (nullable). Unique (game_id, member_id, track_id) — the duplicate rule is per-user, see M3-4 and docs/pooling.md.
 - **Round** — game_id, round_date (unique per game), submission_id (the answer — never serialized pre-guess), status (open/closed), created_at.
 - **Guess** — round_id, guesser_user_id, guessed_member_id, is_correct, points, created_at. Unique (round_id, guesser).
 - **StatSnapshot** — per (game, user): current streak, best streak, correct/total, fool points earned; denormalised for cheap leaderboards.
@@ -102,8 +102,8 @@ DONEISH - **M2-4 Search UX** — debounced search box, result cards with preview
 - **M3-1 Create game** — owner becomes the sole member; no submission required at creation. *AC: game exists with just the owner as a member.*
 DONE - **M3-2 Invite notifications** — invite by display-name search; recipient accepts/declines straight from the toast (Supabase Realtime), with the bell as the catch-up surface for ones they missed. Inviter sees pending invites + who's joined on the game page, and can cancel. *AC: invite a user by name; they see it without a reload; accepting puts the game on both accounts.*
 DONE - **M3-3 Membership management** — leave a game; owner can remove members, hand ownership to another member, and delete the game behind a type-the-name confirmation. Removal is soft (`status: left`) so pooled songs retire per §2. *AC: only the owner sees remove/transfer; the owner can't be removed without transferring first; deleting requires the exact game name.*
-- **M3-4 Duplicate rule** — reject already played not pooled as if it was pooled and not played that means they no one every saw it except from the user that requested it tracks from user not from all users (could add some fun to the game) - this will also be limited so that after some time they can play the same song again - at submission with friendly copy. *AC: second submission of the same track fails gracefully.*
-- **M3-5 Game home (pre-round)** — members, own pooled songs (private to you), "first round at midnight" state. *AC: you can see your banked songs; you cannot see anyone else's.*
+DONE - **M3-4 Duplicate rule** — per-user, not per-game: re-banking a track *you* already hold is rejected, but another member banking the same unplayed track is allowed (nobody's seen it, and it's a funny reveal). Tracks the game has already played are blocked until `REPLAY_AFTER_DAYS` (180) has passed. *AC: second submission of the same track by the same person fails gracefully; by a different person it succeeds.* See docs/pooling.md.
+DONE - **M3-5 Game home (pre-round)** — members, own pooled songs (private to you), seat meter toward the 3-member unlock, "first round at midnight" state. Pool is private by construction: no query on the page reaches another member's submissions. *AC: you can see your banked songs; you cannot see anyone else's.*
 
 ### M4 — Round engine (weekend 4)
 - **M4-1 Draw job** — algorithm per §4, cron-triggered, transactional, idempotent; skip+alert on dry pool. *AC: double-firing the endpoint creates exactly one round; dry pool pings ntfy.*

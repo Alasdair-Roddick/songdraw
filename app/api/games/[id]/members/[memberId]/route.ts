@@ -4,6 +4,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { game, gameMember } from "@/lib/db/game";
+import { submission } from "@/lib/db/submission";
 import { activeMembership } from "@/lib/games";
 import { notifyUser } from "@/lib/realtime";
 
@@ -64,12 +65,22 @@ export async function DELETE(
 		);
 	}
 
-	// Soft removal: their pooled songs retire with them (GamePlan §2) and past
-	// rounds keep referring to a real member row.
-	await db
-		.update(gameMember)
-		.set({ status: "left" })
-		.where(eq(gameMember.id, memberId));
+	// Soft removal, so past rounds keep referring to a real member row — and
+	// their still-pooled songs retire with them (GamePlan §2). Played songs are
+	// left alone: they're already part of the game's history.
+	await db.transaction(async (tx) => {
+		await tx
+			.update(gameMember)
+			.set({ status: "left" })
+			.where(eq(gameMember.id, memberId));
+
+		await tx
+			.update(submission)
+			.set({ status: "retired" })
+			.where(
+				and(eq(submission.memberId, memberId), eq(submission.status, "pooled")),
+			);
+	});
 
 	if (!isSelf) await notifyUser(target.userId, "game:removed");
 
