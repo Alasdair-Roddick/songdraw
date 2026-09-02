@@ -14,6 +14,7 @@ import {
 // granted from code. See docs/object-storage.md.
 const BUCKET = process.env.S3_BUCKET!;
 const PUBLIC_URL = process.env.S3_PUBLIC_URL!;
+const PUBLIC_HOST = new URL(PUBLIC_URL).host;
 
 const s3 = new S3Client({
 	endpoint: process.env.S3_ENDPOINT,
@@ -47,12 +48,33 @@ export async function uploadAvatar(userId: string, file: File) {
 	return `${PUBLIC_URL}/${key}`;
 }
 
-// Only deletes images we actually host — dicebear URLs (or anything else)
-// are left alone.
+// Deletes an avatar object we host. Matches on our storage host + the
+// `avatars/` key prefix rather than the full S3_PUBLIC_URL, so URLs stored
+// before S3_PUBLIC_URL last changed (e.g. gained/lost the bucket segment) are
+// still recognised and cleaned up. dicebear URLs (or anything else) are left
+// alone. Best-effort: a failed delete is logged, never thrown — losing an
+// avatar swap over a stale orphan isn't worth it.
 export async function deleteAvatarIfOwned(url: string | null | undefined) {
-	const prefix = `${PUBLIC_URL}/`;
-	if (!url?.startsWith(prefix)) return;
+	if (!url) return;
 
-	const key = url.slice(prefix.length);
-	await s3.send(new DeleteObjectCommand({ Bucket: BUCKET, Key: key }));
+	let parsed: URL;
+	try {
+		parsed = new URL(url);
+	} catch {
+		return;
+	}
+
+	const marker = "/avatars/";
+	const idx = parsed.pathname.indexOf(marker);
+	if (parsed.host !== PUBLIC_HOST || idx === -1) return;
+
+	// Object key is always `avatars/<userId>/<uuid>.<ext>` regardless of any
+	// bucket segment the public host puts in front of it.
+	const key = parsed.pathname.slice(idx + 1);
+
+	try {
+		await s3.send(new DeleteObjectCommand({ Bucket: BUCKET, Key: key }));
+	} catch (err) {
+		console.error(`failed to delete old avatar ${key}`, err);
+	}
 }

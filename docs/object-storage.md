@@ -29,9 +29,27 @@ swapping `S3_*` env vars points it at any S3-compatible service.
 | `S3_REGION` | `auto` |
 | `S3_ACCESS_KEY_ID` | API token Access Key ID |
 | `S3_SECRET_ACCESS_KEY` | API token Secret Access Key |
-| `S3_BUCKET` | bucket name, e.g. `songdraw-avatars` |
-| `S3_PUBLIC_URL` | custom domain or r2.dev URL bound to the bucket, no trailing slash |
+| `S3_BUCKET` | bucket name, e.g. `song-draw` |
+| `S3_PUBLIC_URL` | public base objects are served from, no trailing slash — see below |
 
 Object keys are `avatars/<user-id>/<uuid>.<ext>`; the browser-facing URL is
 `${S3_PUBLIC_URL}/avatars/<user-id>/<uuid>.<ext>`. `deleteAvatarIfOwned` only
 removes URLs under `S3_PUBLIC_URL`, so dicebear seed avatars are never touched.
+
+### Getting `S3_PUBLIC_URL` right
+
+The code appends `/avatars/...` to `S3_PUBLIC_URL` — nothing else. So the value
+depends on what your public host resolves to:
+
+- **R2 custom domain bound straight to the bucket** (dashboard → bucket →
+  Settings → Custom Domains): the domain *is* the bucket root, so
+  `S3_PUBLIC_URL=https://avatars.roddickshare.space` and objects sit at
+  `https://avatars.roddickshare.space/avatars/...`.
+- **Domain resolves a level above the bucket**, or you point at the r2.dev
+  subdomain / the S3 endpoint: the bucket name must be in the path, so
+  `S3_PUBLIC_URL=https://avatars.roddickshare.space/song-draw` and objects sit
+  at `https://.../song-draw/avatars/...`.
+
+A `404` (not `403`) on a freshly uploaded avatar almost always means the bucket
+segment is missing from `S3_PUBLIC_URL`. Changing it doesn't rewrite URLs
+already stored on users — those need a re-upload or an avatar shuffle.
