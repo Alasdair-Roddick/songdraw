@@ -3,7 +3,6 @@ import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { game } from "@/lib/db/game";
 import { closeRoundsBefore, drawForGame } from "@/lib/draw";
-import { notifyOps } from "@/lib/ntfy";
 import { notifyGame } from "@/lib/realtime";
 import { gameDate } from "@/lib/round-date";
 
@@ -39,20 +38,9 @@ export async function POST(request: Request) {
 			// Wakes every open client straight into today's round.
 			if (result.status === "created")
 				await notifyGame(current.id, "round:drawn");
-
-			if (result.status === "dry") {
-				await notifyOps(
-					"song-pool-dry",
-					`${current.name}: nobody has a song pooled, so today was skipped.`,
-				);
-			}
 		} catch (err) {
 			results.failed += 1;
 			console.error(`draw failed for game ${current.id}`, err);
-			await notifyOps(
-				"song-draw-failed",
-				`${current.name}: draw failed — ${(err as Error).message}`,
-			);
 		}
 	}
 

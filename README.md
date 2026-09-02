@@ -67,7 +67,6 @@ Services:
 - `app` — the Next.js app, built via the root `Dockerfile` (bun for install/build, standalone Node output at runtime)
 - `migrate` — runs `drizzle-kit push` against Supabase before `app` starts; idempotent
 - `cron` — daily draw trigger (`docker/cron`), fires `POST /api/internal/draw` at midnight Australia/Adelaide
-- `ntfy` — notifications (`song-pool-dry`, `song-draw-failed`, `song-new-member` topics)
 
 Ports are remapped from their defaults where they'd collide with other services on the host — check `docker-compose.yml` for the current mapping.
 

@@ -29,7 +29,7 @@
 - **Streaks:** consecutive days *played* (guessed, or was the submitter). Submitter days count automatically.
 - **Reveal:** at 17:00 Adelaide, or early once every eligible member has guessed. Between your guess and the reveal you sit in a `locked` state that still carries no ownership. Share grid is spoiler-light: `Song #23 🟩 streak 7` / `🟥 streak 0`, no names.
 - **Day boundary:** 00:00 Australia/Adelaide, hard-coded. A round opens at midnight, reveals at 17:00 (or earlier if everyone's guessed), and closes at the next midnight; unplayed = missed.
-- **Degenerate cases:** submission (and therefore the whole daily loop) is locked below 3 members — the pre-round game home nudges "invite N more to unlock." Once unlocked, if no member has a pooled song at draw time (pool exhausted), the day is skipped and ntfy alerts the owner ("pool is dry").
+- **Degenerate cases:** submission (and therefore the whole daily loop) is locked below 3 members — the pre-round game home nudges "invite N more to unlock." Once unlocked, if no member has a pooled song at draw time (pool exhausted), the day is skipped; the room's pool-health card makes the shortage visible.
 - **Audio:** the drawn track's 30-second preview (from iTunes/Deezer metadata) is playable on the guess screen. Album art shown. This is flavour, not a dependency — the game works fully on metadata.
 
 ---
@@ -54,9 +54,8 @@ S3-compatible, zero-egress, no container to run or back up. Uploaded avatars liv
 **Scheduling — one cron job.** The daily draw at 00:00 Adelaide: a cron sidecar container (or systemd timer on the host) curling an internal, token-protected `/api/internal/draw` endpoint. Idempotent by design (unique constraint on `round.date` per game) so double-fires are harmless.
 
 **Infra — what you already run:**
-- Docker Compose: `app` (Next.js), `migrate`, `cron` (alpine + curl), optional `ntfy` — Postgres is hosted Supabase and profile pictures go to Cloudflare R2, so neither is a container
+- Docker Compose: `app` (Next.js), `migrate`, `cron` (alpine + curl) — Postgres is hosted Supabase and profile pictures go to Cloudflare R2, so neither is a container
 - Pangolin/Traefik tunnel fronts `song.roddickshare.space`
-- ntfy topics: `song-pool-dry`, `song-draw-failed`, `song-new-member`
 - Nightly `pg_dump` to the existing backup target
 
 ---
@@ -83,7 +82,7 @@ S3-compatible, zero-egress, no container to run or back up. Uploaded avatars liv
 
 ### M0 — Foundations (weekend 1)
 DONE - **M0-1 Stack decision + repo** — lock Next.js-only vs FastAPI variant; scaffold; README. *AC: decision recorded in /docs/adr-001; `docker compose up` serves hello-world.*
-DONE - **M0-2 Compose stack** — app, postgres, rustfs, cron, ntfy; healthchecks; env templating. *AC: green on the homelab.*
+DONE - **M0-2 Compose stack** — app, cron; healthchecks; env templating. *AC: green on the homelab.*
 DONE - **M0-3 Domain + routing** — through existing tunnel; HTTPS externally. *AC: reachable from mobile data.*
 DONE - **M0-4 CI + migrations** — lint/typecheck/test on PR; migration tool wired with baseline. *AC: red PR on lint fail; `migrate` idempotent.*
 
@@ -106,7 +105,7 @@ DONE - **M3-4 Duplicate rule** — per-user, not per-game: re-banking a track *y
 DONE - **M3-5 Game home (pre-round)** — members, own pooled songs (private to you), seat meter toward the 3-member unlock, "first round at midnight" state. Pool is private by construction: no query on the page reaches another member's submissions. *AC: you can see your banked songs; you cannot see anyone else's.*
 
 ### M4 — Round engine (weekend 4)
-DONE - **M4-1 Draw job** — two-stage seeded draw per §4, cron-triggered, transactional, idempotent; skip+ntfy on dry pool. *AC: double-firing the endpoint creates exactly one round; dry pool pings ntfy.* Verified against the live DB.
+DONE - **M4-1 Draw job** — two-stage seeded draw per §4, cron-triggered, transactional, idempotent; skips dry pools. *AC: double-firing the endpoint creates exactly one round.* Verified against the live DB.
 DONE - **M4-2 Guess API** — one guess per member per round (unique index), server-scored; ownership absent from all pre-guess payloads. All secrecy branching lives in `lib/round.ts`. *AC: network-tab audit shows no ownership leak before guessing.*
 DONE - **M4-3 Submitter experience** — drawn member sees "your song is up" + live fooled-count instead of a guess UI; fool points accrue per wrong guess, pushed via Realtime. *AC: wrong guess by A immediately reflects in submitter's view and StatSnapshot.*
 DONE - **M4-4 Round lifecycle + streaks** — closed by the same cron before it draws, misses marked, streaks settled (submitter days count as played). *AC: three consecutive played days = streak 3; a miss resets; submitter day doesn't break it.* Streak cases covered by the draw test.
@@ -121,7 +120,6 @@ DONE - **M4-5 Post-guess submission gate** — banking unlocks only after your g
 - **M5-5 History** — past rounds read-only with answers and per-round guess breakdowns. *AC: yesterday browsable, accepts no input.*
 
 ### M6 — Polish & ongoing
-- **M6-1 Daily ping** — "today's song is live" via ntfy/web push, opt-in; special copy on your submitter day ("your song is playing 👀"). *AC: per-user opt-in respected.*
 - **M6-2 Flavour stats** — most-fooled pairs, "X's songs get mistaken for Y", hardest song so far. *AC: shown on reveal/leaderboard without new schema.*
 - **M6-3 Second mode (validates the engine)** — e.g. weekly bonus round: guess the *year* of a played track. *AC: shipped without breaking Round/Guess schema.*
 - **M6-4 Ops hardening** — backup restore drill, Grafana panel (rounds, guesses/day, dry-pool events), dependency updates. *AC: restore performed once, documented.*
