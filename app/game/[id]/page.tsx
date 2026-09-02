@@ -6,6 +6,7 @@ import { notFound, redirect } from "next/navigation";
 import { AppHeader } from "@/components/app-header";
 import { DailyRound } from "@/components/daily-round";
 import { DeleteGameDialog } from "@/components/delete-game-dialog";
+import { DevPanel } from "@/components/dev-panel";
 import { InviteMemberDialog } from "@/components/invite-member-dialog";
 import { MemberList } from "@/components/member-list";
 import { PendingInvites } from "@/components/pending-invites";
@@ -155,6 +156,9 @@ export default async function GamePage({
 						</p>
 					</div>
 				</div>
+
+				{/* Never renders in production; the route it calls 404s there too. */}
+				{process.env.NODE_ENV !== "production" && <DevPanel gameId={id} />}
 
 				<DailyRound gameId={id} members={members} viewerId={session.user.id} />
 

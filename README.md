@@ -28,6 +28,23 @@ container for either — you need real credentials in `.env.local` to run at all
 
 Apply schema changes with `bunx drizzle-kit push`.
 
+### Simulating the daily loop
+
+Rounds are drawn by cron at 00:00 Australia/Adelaide, which makes the play
+screen hard to reach in dev. A **Dev only** panel appears on the game page
+outside production with three actions (`POST /api/dev/round`, which 404s in
+production and is still membership-gated):
+
+- **Draw now** — draws today's round immediately. No-op if one already exists.
+- **Advance a day** — pushes existing rounds back one day, settles the ones
+  that fall into the past (closing them and updating streaks), then draws a
+  fresh round for today. Shifting history backwards rather than faking a clock
+  keeps `gameDate()` honest, so every read path still sees a live round today.
+- **Reset rounds** — deletes the game's rounds and stats and returns played
+  songs to the pool. Songs retired by a member leaving stay retired.
+
+You need 3 members and at least one banked song before a draw can do anything.
+
 ## Full stack (Docker Compose)
 
 ```bash
