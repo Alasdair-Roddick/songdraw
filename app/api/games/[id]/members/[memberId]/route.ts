@@ -4,9 +4,8 @@ import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { game, gameMember } from "@/lib/db/game";
-import { submission } from "@/lib/db/submission";
 import { activeMembership } from "@/lib/games";
-import { notifyUser } from "@/lib/realtime";
+import { notifyGame, notifyUser } from "@/lib/realtime";
 
 // Remove a member. The owner may remove anyone else; anyone may remove
 // themselves (that's "leave"). Nobody may remove the owner — transferring
@@ -65,24 +64,16 @@ export async function DELETE(
 		);
 	}
 
-	// Soft removal, so past rounds keep referring to a real member row — and
-	// their still-pooled songs retire with them (GamePlan §2). Played songs are
-	// left alone: they're already part of the game's history.
-	await db.transaction(async (tx) => {
-		await tx
-			.update(gameMember)
-			.set({ status: "left" })
-			.where(eq(gameMember.id, memberId));
-
-		await tx
-			.update(submission)
-			.set({ status: "retired" })
-			.where(
-				and(eq(submission.memberId, memberId), eq(submission.status, "pooled")),
-			);
-	});
+	// Soft removal, so past rounds keep referring to a real member row. Their
+	// bank is untouched — it's theirs, not the room's; leaving simply drops
+	// them from this game's candidate list.
+	await db
+		.update(gameMember)
+		.set({ status: "left" })
+		.where(eq(gameMember.id, memberId));
 
 	if (!isSelf) await notifyUser(target.userId, "game:removed");
+	await notifyGame(gameId, "game:members");
 
 	return NextResponse.json({ status: isSelf ? "left" : "removed" });
 }

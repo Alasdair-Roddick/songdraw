@@ -13,21 +13,39 @@ const CHANNEL_SECRET = process.env.REALTIME_CHANNEL_SECRET;
 // reacts by re-fetching `/api/invites`, which is authed and returns only that
 // user's rows. Nothing sensitive crosses the socket, and knowing someone's user
 // id doesn't let you listen to them.
-export function userChannel(userId: string) {
+function channelFor(kind: string, id: string) {
 	if (!CHANNEL_SECRET) {
 		throw new Error("REALTIME_CHANNEL_SECRET is not set");
 	}
 	const digest = createHmac("sha256", CHANNEL_SECRET)
-		.update(userId)
+		.update(`${kind}:${id}`)
 		.digest("hex");
-	return `user-${digest.slice(0, 32)}`;
+	return `${kind}-${digest.slice(0, 32)}`;
+}
+
+/** Private to one user — invites, and anything addressed only to them. */
+export function userChannel(userId: string) {
+	return channelFor("user", userId);
+}
+
+/**
+ * Shared by everyone in a game. Handed only to members (from their own authed
+ * session), and like the user channel it carries empty payloads — so even if a
+ * channel name leaked, it reveals that something changed, never what.
+ *
+ * This is what makes a guess visible to the whole room at once: the waiting
+ * count drops for everybody, and when the last person guesses the reveal fires
+ * for all of them together.
+ */
+export function gameChannel(gameId: string) {
+	return channelFor("game", gameId);
 }
 
 // Fire-and-forget over Realtime's REST broadcast endpoint — no socket to open
 // or tear down inside a route handler. Best-effort by design: if Realtime is
 // down or unconfigured the client's SWR poll/refocus still picks the change up,
 // so a failed ping must never fail the request that triggered it.
-export async function notifyUser(userId: string, event: string) {
+async function broadcast(topic: string, event: string) {
 	if (!SUPABASE_URL || !SUPABASE_ANON_KEY || !CHANNEL_SECRET) return;
 
 	try {
@@ -38,11 +56,18 @@ export async function notifyUser(userId: string, event: string) {
 				apikey: SUPABASE_ANON_KEY,
 				Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
 			},
-			body: JSON.stringify({
-				messages: [{ topic: userChannel(userId), event, payload: {} }],
-			}),
+			body: JSON.stringify({ messages: [{ topic, event, payload: {} }] }),
 		});
 	} catch (err) {
-		console.error(`realtime broadcast to ${event} failed`, err);
+		console.error(`realtime broadcast ${event} failed`, err);
 	}
+}
+
+export async function notifyUser(userId: string, event: string) {
+	await broadcast(userChannel(userId), event);
+}
+
+/** Ping every member of a game — a guess, a draw, a roster change. */
+export async function notifyGame(gameId: string, event: string) {
+	await broadcast(gameChannel(gameId), event);
 }

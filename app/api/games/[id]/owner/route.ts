@@ -4,7 +4,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { game, gameMember } from "@/lib/db/game";
-import { notifyUser } from "@/lib/realtime";
+import { notifyGame, notifyUser } from "@/lib/realtime";
 
 // Hand the game to another active member. Owner only, and the two role rows
 // swap in the same transaction as game.ownerId so a game is never ownerless
@@ -87,6 +87,7 @@ export async function PATCH(
 	});
 
 	await notifyUser(nextOwnerId, "game:owner");
+	await notifyGame(gameId, "game:members");
 
 	return NextResponse.json({ status: "transferred" });
 }

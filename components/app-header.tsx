@@ -22,6 +22,18 @@ export async function AppHeader() {
 					<span className="text-lg font-bold tracking-tighter">SongDraw</span>
 				</Link>
 				<div className="flex items-center gap-1">
+					<Link
+						href="/bank"
+						className="font-mono text-xs font-semibold tracking-widest uppercase text-muted-foreground hover:text-foreground"
+					>
+						Bank
+					</Link>
+					<Link
+						href="/rooms"
+						className="mr-1 ml-3 font-mono text-xs font-semibold tracking-widest uppercase text-muted-foreground hover:text-foreground"
+					>
+						Rooms
+					</Link>
 					<NotificationBell channel={channel} />
 					<UserMenu
 						name={session.user.name}

@@ -14,3 +14,8 @@ export const REPLAY_AFTER_DAYS = 180;
 // person is, so guessing well and bluffing well are both viable.
 export const CORRECT_POINTS = 100;
 export const FOOL_POINTS = 50;
+
+// Answers unlock at 17:00 Australia/Adelaide — or as soon as everyone has
+// guessed, whichever comes first. Guessing early no longer spoils the answer
+// for you, so the reveal is something the group arrives at together.
+export const REVEAL_HOUR = 17;

@@ -6,7 +6,7 @@ import { db } from "@/lib/db";
 import { gameInvite, gameMember } from "@/lib/db/game";
 import { user } from "@/lib/db/schema";
 import { activeMembership } from "@/lib/games";
-import { notifyUser } from "@/lib/realtime";
+import { notifyGame, notifyUser } from "@/lib/realtime";
 
 // Pending invites for a game — the inviter-side "who hasn't answered yet" view.
 export async function GET(
@@ -108,6 +108,7 @@ export async function POST(
 		.returning();
 
 	await notifyUser(inviteeId, "invite:received");
+	await notifyGame(gameId, "game:members");
 
 	return NextResponse.json(invite, { status: 201 });
 }

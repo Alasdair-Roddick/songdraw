@@ -1,9 +1,9 @@
 import { createHash } from "node:crypto";
-import { and, asc, eq, lt } from "drizzle-orm";
+import { and, asc, eq, lt, notInArray } from "drizzle-orm";
 import { db } from "@/lib/db";
+import { bankSong } from "@/lib/db/bank";
 import { gameMember } from "@/lib/db/game";
 import { guess, round, statSnapshot } from "@/lib/db/round";
-import { submission } from "@/lib/db/submission";
 import { previousDate } from "@/lib/round-date";
 
 // Seeded so a given (game, date) always draws the same song no matter how many
@@ -25,9 +25,12 @@ export type DrawResult =
 	| { status: "dry" };
 
 /**
- * Two-stage uniform draw (GamePlan §4): pick a member with at least one pooled
- * song, then one of *their* songs. Picking the member first is what keeps daily
- * odds equal regardless of how big anyone's pool is.
+ * Two-stage uniform draw (GamePlan §4): pick a member who still has an unplayed
+ * song, then one of *their* songs. Picking the person first is what keeps daily
+ * odds equal regardless of how big anyone's bank is.
+ *
+ * Banks are per-user and shared across games, so "already played" is scoped to
+ * this game only — a track Game A has used is still unheard in Game B.
  */
 export async function drawForGame(
 	gameId: string,
@@ -43,30 +46,33 @@ export async function drawForGame(
 			return { status: "exists", roundId: existing[0].id } as const;
 		}
 
-		// Ordered by id so the candidate list is identical on every replay —
-		// without this the seed wouldn't actually make the draw reproducible.
-		const pooled = await tx
-			.select({
-				memberId: submission.memberId,
-				submissionId: submission.id,
-			})
-			.from(submission)
-			.innerJoin(gameMember, eq(submission.memberId, gameMember.id))
+		const usedHere = await tx
+			.select({ bankSongId: round.bankSongId })
+			.from(round)
+			.where(eq(round.gameId, gameId));
+		const used = usedHere.map((row) => row.bankSongId);
+
+		// Ordered so the candidate list is identical on every replay — without
+		// this the seed wouldn't actually make the draw reproducible.
+		const available = await tx
+			.select({ memberId: gameMember.id, bankSongId: bankSong.id })
+			.from(gameMember)
+			.innerJoin(bankSong, eq(bankSong.userId, gameMember.userId))
 			.where(
 				and(
-					eq(submission.gameId, gameId),
-					eq(submission.status, "pooled"),
+					eq(gameMember.gameId, gameId),
 					eq(gameMember.status, "active"),
+					used.length > 0 ? notInArray(bankSong.id, used) : undefined,
 				),
 			)
-			.orderBy(asc(submission.memberId), asc(submission.id));
+			.orderBy(asc(gameMember.id), asc(bankSong.id));
 
-		if (pooled.length === 0) return { status: "dry" } as const;
+		if (available.length === 0) return { status: "dry" } as const;
 
 		const byMember = new Map<string, string[]>();
-		for (const row of pooled) {
+		for (const row of available) {
 			const list = byMember.get(row.memberId) ?? [];
-			list.push(row.submissionId);
+			list.push(row.bankSongId);
 			byMember.set(row.memberId, list);
 		}
 
@@ -74,11 +80,11 @@ export async function drawForGame(
 		const memberIds = [...byMember.keys()];
 		const memberId = memberIds[Math.floor(rng() * memberIds.length)];
 		const songs = byMember.get(memberId) as string[];
-		const submissionId = songs[Math.floor(rng() * songs.length)];
+		const bankSongId = songs[Math.floor(rng() * songs.length)];
 
 		const [created] = await tx
 			.insert(round)
-			.values({ gameId, roundDate, submissionId })
+			.values({ gameId, roundDate, bankSongId })
 			// Belt and braces against two jobs racing past the check above; the
 			// unique (game_id, round_date) index is the real guarantee.
 			.onConflictDoNothing({ target: [round.gameId, round.roundDate] })
@@ -93,13 +99,8 @@ export async function drawForGame(
 			return { status: "exists", roundId: row.id } as const;
 		}
 
-		// Retire the song in the same transaction, so a played track can never
-		// be drawn twice even if the job dies immediately after.
-		await tx
-			.update(submission)
-			.set({ status: "played", playedInRoundId: created.id })
-			.where(eq(submission.id, submissionId));
-
+		// No status to flip: the round row *is* the record that this game has
+		// played this song, which is what keeps the bank game-agnostic.
 		return { status: "created", roundId: created.id } as const;
 	});
 }
@@ -118,22 +119,22 @@ export async function closeRoundsBefore(today: string) {
 			id: round.id,
 			gameId: round.gameId,
 			roundDate: round.roundDate,
-			submitterMemberId: submission.memberId,
+			submitterUserId: bankSong.userId,
 		})
 		.from(round)
-		.innerJoin(submission, eq(round.submissionId, submission.id))
+		.innerJoin(bankSong, eq(round.bankSongId, bankSong.id))
 		.where(and(eq(round.status, "open"), lt(round.roundDate, today)));
 
 	let closed = 0;
 
-	for (const stale_round of stale) {
+	for (const staleRound of stale) {
 		await db.transaction(async (tx) => {
 			const members = await tx
 				.select({ id: gameMember.id, userId: gameMember.userId })
 				.from(gameMember)
 				.where(
 					and(
-						eq(gameMember.gameId, stale_round.gameId),
+						eq(gameMember.gameId, staleRound.gameId),
 						eq(gameMember.status, "active"),
 					),
 				);
@@ -141,22 +142,22 @@ export async function closeRoundsBefore(today: string) {
 			const guessers = await tx
 				.select({ userId: guess.guesserUserId })
 				.from(guess)
-				.where(eq(guess.roundId, stale_round.id));
-			const played = new Set(guessers.map((g) => g.userId));
+				.where(eq(guess.roundId, staleRound.id));
+			const played = new Set(guessers.map((row) => row.userId));
 
-			const yesterday = previousDate(stale_round.roundDate);
+			const yesterday = previousDate(staleRound.roundDate);
 
 			for (const member of members) {
 				const didPlay =
 					played.has(member.userId) ||
-					member.id === stale_round.submitterMemberId;
+					member.userId === staleRound.submitterUserId;
 
 				const [stat] = await tx
 					.select()
 					.from(statSnapshot)
 					.where(
 						and(
-							eq(statSnapshot.gameId, stale_round.gameId),
+							eq(statSnapshot.gameId, staleRound.gameId),
 							eq(statSnapshot.userId, member.userId),
 						),
 					)
@@ -172,13 +173,13 @@ export async function closeRoundsBefore(today: string) {
 					: 0;
 				const bestStreak = Math.max(stat?.bestStreak ?? 0, currentStreak);
 				const lastPlayedDate = didPlay
-					? stale_round.roundDate
+					? staleRound.roundDate
 					: (stat?.lastPlayedDate ?? null);
 
 				await tx
 					.insert(statSnapshot)
 					.values({
-						gameId: stale_round.gameId,
+						gameId: staleRound.gameId,
 						userId: member.userId,
 						currentStreak,
 						bestStreak,
@@ -193,7 +194,7 @@ export async function closeRoundsBefore(today: string) {
 			await tx
 				.update(round)
 				.set({ status: "closed" })
-				.where(eq(round.id, stale_round.id));
+				.where(eq(round.id, staleRound.id));
 		});
 		closed += 1;
 	}

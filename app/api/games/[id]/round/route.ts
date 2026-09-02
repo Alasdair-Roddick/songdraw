@@ -20,6 +20,6 @@ export async function GET(
 	}
 
 	// All secrecy logic lives in roundViewFor — see lib/round.ts.
-	const view = await roundViewFor(gameId, session.user.id, membership.id);
+	const view = await roundViewFor(gameId, session.user.id);
 	return NextResponse.json(view);
 }

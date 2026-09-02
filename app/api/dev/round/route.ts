@@ -4,9 +4,9 @@ import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { round, statSnapshot } from "@/lib/db/round";
-import { submission } from "@/lib/db/submission";
 import { closeRoundsBefore, drawForGame } from "@/lib/draw";
 import { activeMembership } from "@/lib/games";
+import { notifyGame } from "@/lib/realtime";
 import { gameDate } from "@/lib/round-date";
 
 // Dev-only harness for the daily loop, so you don't have to wait for Adelaide
@@ -36,6 +36,7 @@ export async function POST(request: Request) {
 
 	if (action === "draw") {
 		const result = await drawForGame(gameId, today);
+		await notifyGame(gameId, "round:drawn");
 		return NextResponse.json(result);
 	}
 
@@ -53,23 +54,18 @@ export async function POST(request: Request) {
 
 		const closed = await closeRoundsBefore(today);
 		const result = await drawForGame(gameId, today);
+		await notifyGame(gameId, "round:drawn");
 		return NextResponse.json({ closed, ...result });
 	}
 
 	if (action === "reset") {
+		// Deleting the rounds is the whole reset: "played here" is derived from
+		// them, so the members' banks become fully drawable again by itself.
 		await db.transaction(async (tx) => {
-			// Guesses cascade with their round.
 			await tx.delete(round).where(eq(round.gameId, gameId));
 			await tx.delete(statSnapshot).where(eq(statSnapshot.gameId, gameId));
-			// Only revive songs the draw consumed — a "retired" song belongs to
-			// someone who left, and reviving it would put them back in the draw.
-			await tx
-				.update(submission)
-				.set({ status: "pooled", playedInRoundId: null })
-				.where(
-					sql`${submission.gameId} = ${gameId} AND ${submission.status} = 'played'`,
-				);
 		});
+		await notifyGame(gameId, "round:reset");
 		return NextResponse.json({ status: "reset" });
 	}
 

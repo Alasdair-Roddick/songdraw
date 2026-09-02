@@ -1,56 +1,40 @@
-# Banking songs (the pool)
+# The song bank
 
-Each member banks songs into a game's pool. On any given day the draw picks a
-member first, then one of *their* pooled songs (GamePlan §2), so pool size
-doesn't change your daily odds — a big pool just means more variety when your
-number comes up.
+Each **person** has one bank of songs, shared by every room they're in. The draw
+picks a member first, then one of *their* banked songs the room hasn't played —
+so bank size never changes your daily odds, it only changes the variety when
+your number comes up.
+
+## Why the bank isn't per-room
+
+"Already played" is a fact about a **room**, not about a song. A track Room A
+drew is still completely unheard by Room B, so it stays drawable there. That's
+why `bank_song` carries no status column at all: which rooms have burned a song
+is derived from `round.bank_song_id`, and the draw excludes only the rows that
+*this* room's rounds already used.
+
+The upshot is you maintain one list instead of one per room, and a good song
+earns its keep across all of them.
 
 ## Privacy
 
-Your pool is private, and it's private *by construction*: the game page only
-ever queries `submission` rows scoped to your own `game_member.id`
-([app/game/[id]/page.tsx](../app/game/[id]/page.tsx)), and there is no endpoint
-that returns anyone else's. This is the first place the answer-secrecy rule
-(GamePlan §4) bites, and the cheapest place to get it right — there's no
-filtering step to forget, because the other rows are never fetched.
+Your bank is private by construction: `GET /api/bank` filters on your own user
+id and nothing else reads another person's rows. This is where answer secrecy
+starts, and the cheapest place to get it right — there's no filtering step to
+forget, because the other rows are never fetched.
 
-## The duplicate rule
+## Banking is gated on playing
 
-GamePlan §2 and M3-4 disagree: §2 says a track pooled *or* played in the game
-can't be submitted again (unique on `game_id, track_id`), while M3-4 later
-argues duplicates should be per-user, because a pooled-but-unplayed song has
-been seen by nobody except the person who banked it.
+You can bank once you have **no outstanding guesses** — no room is still waiting
+on you today. One bank feeds every room, so the old per-room gate no longer
+makes sense; this is the shared-bank version of M4-5, and it lines up exactly
+with the "all songs guessed" moment the home feed builds toward. Your own
+submitter day doesn't count against you.
 
-M3-4 wins here, and the constraint is `unique (game_id, member_id, track_id)`:
+`outstandingGuesses()` in `app/api/bank/route.ts` is the single definition, used
+both to gate the POST and to render the locked state.
 
-- **Re-banking a track you already hold** → rejected. It's a wasted slot; you
-  gain nothing from holding the same song twice.
-- **Banking a track someone else has pooled** → allowed. Nobody has seen it, so
-  there's no information leak — and two people independently banking the same
-  song is a genuinely funny reveal when it's finally drawn.
-- **Banking a track this game has already played** → rejected. Everyone saw it
-  and knows whose it was, so it has no bluffing value left.
+## Removing
 
-That last rejection expires. `REPLAY_AFTER_DAYS` in
-[lib/game-rules.ts](../lib/game-rules.ts) (currently 180) is how long a played
-track stays off-limits, per M3-4's "after some time they can play the same song
-again".
-
-## Lifecycle
-
-`pooled → played → retired`.
-
-- **pooled** — banked and waiting. Only you can see it; only you can remove it.
-- **played** — drawn for a round. Removal is refused from here on: it's part of
-  the game's history, not your inventory any more.
-- **retired** — the member left or was removed. Retiring their still-pooled
-  songs happens in the same transaction as the removal
-  ([members route](../app/api/games/[id]/members/[memberId]/route.ts)), so a
-  departed player's pool can never be drawn. Already-played songs are left
-  alone — those rounds happened.
-
-## Gating
-
-Submission is closed entirely below `MIN_MEMBERS` (3), checked server-side on
-every POST, not just hidden in the UI. After rounds begin, M4-5 adds the second
-gate: you must have guessed today before you may bank again.
+You can remove a banked song until some room has played it. After that the round
+row points at it and it belongs to that room's history, so the delete is refused.

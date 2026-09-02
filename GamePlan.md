@@ -9,9 +9,9 @@
 **Premise.** A persistent **Game** is created by one user, who invites others **by display name from inside the app**. The invitee gets a notification — a toast if they're online, otherwise a badge on the bell — and accepts or declines in place. No song required to join. Once a game reaches **3 members**, submission opens and the daily loop begins.
 
 **The daily loop:**
-1. Each day, one pooled song is drawn. Every member (except the submitter) answers one question: **whose song is this?**
-2. After guessing, the answer is revealed immediately.
-3. The reveal screen prompts: **add a song for tomorrow's pool** — your lottery ticket for having your song played.
+1. Each day, one banked song is drawn per room. Every member (except the submitter) answers one question: **whose song is this?**
+2. Answers unlock at **17:00 Adelaide**, or as soon as everyone in the room has guessed — whichever comes first. Guessing early doesn't spoil your own day.
+3. Once you've cleared every room waiting on you, banking unlocks — your lottery ticket for having your song played.
 
 **The submitter's day.** When your song is drawn you don't guess — you *earn*. Every member who guesses wrong pays you points. Submission is therefore a bluffing move: obvious anthem, deep cut, or a psyop track engineered to frame someone else.
 
@@ -22,13 +22,13 @@
 ## 2. Game rules (locked)
 
 - **Draw:** two-stage. First pick a member uniformly at random from members with ≥1 pooled song, then pick one of their pooled songs at random. Equal daily odds regardless of pool size; banked songs keep hope alive.
-- **Song lifecycle:** `pooled → played → retired`. Played songs never repeat. A leaving member's pool retires with them.
+- **Song bank:** one bank per **person**, shared by every room they're in. "Already played" is a fact about a *room*, not the song — a track Room A used is still unheard in Room B, so it can be drawn there too. A room never replays its own. Leaving a room doesn't touch your bank; it just drops you from that room's candidates.
 - **Submission rights:** one submission per completed round (play first, then submit); submission is closed entirely until the game reaches 3 members. Unpicked songs roll over.
 - **Duplicate rule:** you can't bank a track you already hold, and nobody can bank one the game has already played (until `REPLAY_AFTER_DAYS`). Two members independently pooling the same *unplayed* track is allowed — nobody has seen it. Server rejects with friendly copy.
 - **Scoring v1:** guesser +100 for correct (single attempt). Submitter +50 per wrong guess. Missed round = 0 and streak reset; banked songs stay pooled.
 - **Streaks:** consecutive days *played* (guessed, or was the submitter). Submitter days count automatically.
-- **Reveal:** immediately after your own guess. Share grid is spoiler-light: `Song #23 🟩 streak 7` / `🟥 streak 0`, no names.
-- **Day boundary:** 00:00 Australia/Adelaide, hard-coded. Round opens at midnight, closes at next midnight; unplayed = missed.
+- **Reveal:** at 17:00 Adelaide, or early once every eligible member has guessed. Between your guess and the reveal you sit in a `locked` state that still carries no ownership. Share grid is spoiler-light: `Song #23 🟩 streak 7` / `🟥 streak 0`, no names.
+- **Day boundary:** 00:00 Australia/Adelaide, hard-coded. A round opens at midnight, reveals at 17:00 (or earlier if everyone's guessed), and closes at the next midnight; unplayed = missed.
 - **Degenerate cases:** submission (and therefore the whole daily loop) is locked below 3 members — the pre-round game home nudges "invite N more to unlock." Once unlocked, if no member has a pooled song at draw time (pool exhausted), the day is skipped and ntfy alerts the owner ("pool is dry").
 - **Audio:** the drawn track's 30-second preview (from iTunes/Deezer metadata) is playable on the guess screen. Album art shown. This is flavour, not a dependency — the game works fully on metadata.
 
@@ -68,8 +68,8 @@ S3-compatible, zero-egress, no container to run or back up. Uploaded avatars liv
 - **GameMember** — game_id, user_id, joined_at, role, status (active/left).
 - **GameInvite** — id, game_id, inviter_id, invitee_id, status (`pending`/`accepted`/`declined`/`cancelled`), created_at, responded_at. Unique (game_id, invitee_id) — re-inviting someone who declined flips their existing row back to `pending` rather than stacking duplicates.
 - **TrackAsset** — provider (`itunes`/`deezer`), provider_track_id, title, artists, album, artwork_url, preview_url, cached_at. Unique on (provider, provider_track_id).
-- **Submission** — game_id, member_id, track_id, submitted_at, status (`pooled`/`played`/`retired`), played_in_round_id (nullable). Unique (game_id, member_id, track_id) — the duplicate rule is per-user, see M3-4 and docs/pooling.md.
-- **Round** — game_id, round_date (unique per game), submission_id (the answer — never serialized pre-guess), status (open/closed), created_at.
+- **BankSong** — user_id, track_id, created_at. Unique (user_id, track_id). No per-game status: which rooms have played it is derived from `Round.bank_song_id`.
+- **Round** — game_id, round_date (unique per game), bank_song_id (the answer — never serialized before the reveal unlocks), status (open/closed), created_at.
 - **Guess** — round_id, guesser_user_id, guessed_member_id, is_correct, points, created_at. Unique (round_id, guesser).
 - **StatSnapshot** — per (game, user): current streak, best streak, correct/total, fool points earned; denormalised for cheap leaderboards.
 
@@ -136,7 +136,7 @@ DONE - **M4-5 Post-guess submission gate** — banking unlocks only after your g
 3. Joining requires no song — submission is locked until a game reaches 3 members, then playing gates submitting thereafter. The pool cannot outrun the players.
 4. Two-stage uniform draw; played songs retire; duplicates rejected.
 5. Submitter scores by fooling; their day is the best day, not a bye.
-6. Midnight Adelaide, hard-coded. Reveal after own guess. Spoiler-free share grid.
+6. Midnight Adelaide, hard-coded. Reveal at 17:00 Adelaide or once everyone has guessed. Spoiler-free share grid.
 7. Answers never serialized pre-guess. Scoring server-side only.
 8. Single Next.js deployable + cron sidecar (unless ADR-001 says otherwise). No queues. One WebSocket: Supabase Realtime, and only as a wake-up ping — every payload is empty and the client re-fetches an authed endpoint, so SWR polling remains the correctness floor.
 9. Invites are in-app and by display name, not shareable links. You must have an account before you can be invited.
@@ -155,3 +155,4 @@ DONE - **M4-5 Post-guess submission gate** — banking unlocks only after your g
 - **Forgotten passwords:** no email flow exists yet to recover a lost password. Mitigation: sessions are ~1 year so re-login is rare; add a password-reset email path if it becomes a real pain point.
 - **Small groups:** 2-player games would be trivial to guess. Mitigation: no longer a live risk — submission (and therefore play) is locked entirely below 3 members, so there's no trivial-guess state, just a waiting one.
 - **Pool droughts:** if people miss days, tomorrow may have no song. Mitigation: rollover pools and the dry-pool alert. Scarcity is also motivation — "we need you back, the pool's empty" is a group-chat message that writes itself.
+11. One song bank per person, shared across every room. Rooms are just "who's in this game"; the home screen is the game itself (a snap-scrolled feed, one room per screen); the bank is its own page.

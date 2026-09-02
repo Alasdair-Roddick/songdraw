@@ -7,7 +7,7 @@ config({ path: ".env" });
 config({ path: ".env.local", override: true });
 
 export default defineConfig({
-	schema: ["./lib/db/schema.ts", "./lib/db/track-asset.ts", "./lib/db/game.ts", "./lib/db/submission.ts", "./lib/db/round.ts"],
+	schema: ["./lib/db/schema.ts", "./lib/db/track-asset.ts", "./lib/db/game.ts", "./lib/db/bank.ts", "./lib/db/round.ts"],
 	out: "./drizzle",
 	dialect: "postgresql",
 	dbCredentials: {

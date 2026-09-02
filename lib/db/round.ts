@@ -9,12 +9,12 @@ import {
 	timestamp,
 	unique,
 } from "drizzle-orm/pg-core";
+import { bankSong } from "./bank";
 import { game, gameMember } from "./game";
 import { user } from "./schema";
-import { submission } from "./submission";
 
-// One drawn song per game per day. `submissionId` is the answer and must never
-// reach a guesser before their own guess exists — see lib/round.ts.
+// One drawn song per game per day. `bankSongId` is the answer and must never
+// reach a guesser before the reveal unlocks — see lib/round.ts.
 export const round = pgTable(
 	"round",
 	{
@@ -27,9 +27,11 @@ export const round = pgTable(
 		// Date in Australia/Adelaide, not UTC. Stored as a plain YYYY-MM-DD so
 		// "which day is this" can never drift with the server's timezone.
 		roundDate: date("round_date", { mode: "string" }).notNull(),
-		submissionId: text("submission_id")
+		// Which of someone's banked songs is up today. The submitter is derived
+		// from bank_song.user_id, joined back to this game's members.
+		bankSongId: text("bank_song_id")
 			.notNull()
-			.references(() => submission.id, { onDelete: "cascade" }),
+			.references(() => bankSong.id, { onDelete: "cascade" }),
 		// "open" | "closed"
 		status: text("status").notNull().default("open"),
 		createdAt: timestamp("created_at").defaultNow().notNull(),
@@ -100,9 +102,9 @@ export const statSnapshot = pgTable(
 
 export const roundRelations = relations(round, ({ one, many }) => ({
 	game: one(game, { fields: [round.gameId], references: [game.id] }),
-	submission: one(submission, {
-		fields: [round.submissionId],
-		references: [submission.id],
+	bankSong: one(bankSong, {
+		fields: [round.bankSongId],
+		references: [bankSong.id],
 	}),
 	guesses: many(guess),
 }));

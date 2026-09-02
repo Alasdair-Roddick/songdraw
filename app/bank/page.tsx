@@ -1,16 +1,14 @@
 import { and, eq } from "drizzle-orm";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
-import { RoundFeed } from "@/components/round-feed";
+import { AppHeader } from "@/components/app-header";
+import { SongBank } from "@/components/song-bank";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { gameMember } from "@/lib/db/game";
 import { gameChannel, userChannel } from "@/lib/realtime";
 
-// The play surface. Deliberately chrome-free — no header, no nav — so a round
-// fills the screen and scrolling moves between games rather than around a page.
-// Everything else lives under /rooms.
-export default async function HomePage() {
+export default async function BankPage() {
 	const session = await auth.api.getSession({ headers: await headers() });
 	if (!session) redirect("/login");
 
@@ -24,12 +22,18 @@ export default async function HomePage() {
 			),
 		);
 
-	// Channel names are derived server-side and handed down, so a browser can
-	// only ever listen to rooms it actually belongs to.
+	// A guess in any room can unlock banking, so the bank listens to them all.
 	const channels = [
 		userChannel(session.user.id),
 		...memberships.map((m) => gameChannel(m.gameId)),
 	];
 
-	return <RoundFeed channels={channels} />;
+	return (
+		<div className="flex flex-1 flex-col">
+			<AppHeader />
+			<main className="mx-auto w-full max-w-4xl flex-1 px-6 py-8">
+				<SongBank channels={channels} />
+			</main>
+		</div>
+	);
 }

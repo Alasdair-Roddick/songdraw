@@ -4,7 +4,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { game, gameInvite, gameMember } from "@/lib/db/game";
-import { notifyUser } from "@/lib/realtime";
+import { notifyGame, notifyUser } from "@/lib/realtime";
 
 // Accept / decline — invitee only.
 export async function PATCH(
@@ -72,6 +72,7 @@ export async function PATCH(
 	});
 
 	await notifyUser(invite.inviterId, "invite:answered");
+	await notifyGame(invite.gameId, "game:members");
 
 	const [joined] = await db
 		.select({ id: game.id, name: game.name })

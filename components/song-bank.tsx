@@ -9,9 +9,9 @@ import {
 	XIcon,
 } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
-import { useRouter } from "next/navigation";
 import { useRef, useState } from "react";
 import { toast } from "sonner";
+import useSWR from "swr";
 import { SongSearch } from "@/components/song-search";
 import { Button } from "@/components/ui/button";
 import {
@@ -22,9 +22,10 @@ import {
 	DialogTitle,
 	DialogTrigger,
 } from "@/components/ui/dialog";
+import { useRealtimeSignal } from "@/hooks/use-realtime";
 import type { Track } from "@/lib/music/types";
 
-export type PooledSong = {
+type BankSong = {
 	id: string;
 	title: string;
 	artist: string;
@@ -32,104 +33,115 @@ export type PooledSong = {
 	previewUrl: string | null;
 };
 
-export function SongPool({
-	gameId,
-	songs,
-	locked,
-	needed,
-	mustPlayFirst,
-}: {
-	gameId: string;
-	songs: PooledSong[];
-	locked: boolean;
-	needed: number;
-	/** M4-5: a round is open and you haven't guessed yet. */
-	mustPlayFirst: boolean;
-}) {
-	const router = useRouter();
+type BankResponse = { songs: BankSong[]; outstanding: number };
+
+const fetcher = (url: string) =>
+	fetch(url).then((res) => {
+		if (!res.ok) throw new Error("failed to load bank");
+		return res.json();
+	});
+
+/**
+ * One bank per person, shared by every game they're in. It isn't scoped to a
+ * game because the draw isn't either — it picks a member, then one of their
+ * songs that the *particular* game hasn't played yet.
+ */
+export function SongBank({ channels }: { channels: string[] }) {
+	const { data, mutate } = useSWR<BankResponse>("/api/bank", fetcher, {
+		refreshInterval: 60_000,
+		revalidateOnFocus: true,
+		keepPreviousData: true,
+	});
+
+	// A guess anywhere can unlock banking, so listen to every game too.
+	useRealtimeSignal(channels, () => {
+		mutate();
+	});
+
 	const [open, setOpen] = useState(false);
 	const [playingId, setPlayingId] = useState<string | null>(null);
 	const [removing, setRemoving] = useState<string | null>(null);
 	const audioRef = useRef<HTMLAudioElement>(null);
 
-	function togglePreview(song: PooledSong) {
+	const songs = data?.songs ?? [];
+	const outstanding = data?.outstanding ?? 0;
+	const locked = outstanding > 0;
+
+	function togglePreview(song: BankSong) {
 		const audio = audioRef.current;
 		if (!audio || !song.previewUrl) return;
-
 		if (playingId === song.id) {
 			audio.pause();
 			setPlayingId(null);
 			return;
 		}
-		// One shared <audio>: starting a preview stops whatever was playing.
 		audio.src = song.previewUrl;
-		audio.play();
+		audio.play().catch(() => setPlayingId(null));
 		setPlayingId(song.id);
 	}
 
 	async function add(track: Track) {
 		setOpen(false);
-
-		const res = await fetch(`/api/games/${gameId}/submissions`, {
+		const res = await fetch("/api/bank", {
 			method: "POST",
 			headers: { "Content-Type": "application/json" },
 			body: JSON.stringify(track),
 		});
-
 		if (!res.ok) {
 			const body = await res.json().catch(() => null);
 			toast.error(body?.error ?? "Couldn't bank that song — try again.");
 			return;
 		}
 		toast.success(`Banked ${track.title}`);
-		router.refresh();
+		mutate();
 	}
 
-	async function remove(song: PooledSong) {
+	async function remove(song: BankSong) {
 		setRemoving(song.id);
 		if (playingId === song.id) {
 			audioRef.current?.pause();
 			setPlayingId(null);
 		}
-
-		const res = await fetch(`/api/games/${gameId}/submissions/${song.id}`, {
-			method: "DELETE",
-		});
+		const res = await fetch(`/api/bank/${song.id}`, { method: "DELETE" });
 		setRemoving(null);
-
 		if (!res.ok) {
-			toast.error("Couldn't remove that song — try again.");
+			const body = await res.json().catch(() => null);
+			toast.error(body?.error ?? "Couldn't remove that song — try again.");
 			return;
 		}
-		router.refresh();
+		mutate();
 	}
 
 	return (
-		<section className="flex flex-col gap-3">
-			<div className="flex flex-wrap items-center justify-between gap-3">
-				<div className="flex flex-col gap-0.5">
-					<h2 className="font-mono text-xs font-semibold tracking-widest uppercase text-muted-foreground">
-						Your pool · {songs.length}
-					</h2>
-					<p className="font-mono text-xs text-muted-foreground">
-						Only you can see these.
+		<section className="flex flex-col gap-4">
+			<div className="flex flex-wrap items-end justify-between gap-3">
+				<div className="flex flex-col gap-1">
+					<h1 className="text-4xl font-black tracking-tighter uppercase leading-[0.95]">
+						Song{" "}
+						<span className="-rotate-1 inline-block bg-brand px-3 text-brand-foreground">
+							bank
+						</span>
+					</h1>
+					<p className="font-mono text-sm text-muted-foreground">
+						{songs.length === 0
+							? "Empty."
+							: `${songs.length} song${songs.length === 1 ? "" : "s"} · used by every room you're in`}
 					</p>
 				</div>
 
 				{locked ? (
 					<span className="flex items-center gap-1.5 font-mono text-xs font-semibold tracking-widest uppercase text-muted-foreground">
 						<LockIcon className="size-3.5" />
-						{needed} more to unlock
-					</span>
-				) : mustPlayFirst ? (
-					<span className="flex items-center gap-1.5 font-mono text-xs font-semibold tracking-widest uppercase text-muted-foreground">
-						<LockIcon className="size-3.5" />
-						Guess today's song first
+						{outstanding} left to guess
 					</span>
 				) : (
 					<Dialog open={open} onOpenChange={setOpen}>
 						<DialogTrigger asChild>
-							<Button type="button" variant="brand" className="rounded-full">
+							<Button
+								type="button"
+								variant="brand"
+								className="h-12 rounded-full text-base"
+							>
 								<PlusIcon />
 								Bank a song
 							</Button>
@@ -161,7 +173,7 @@ export function SongPool({
 					<p className="font-bold tracking-tight">Nothing banked yet</p>
 					<p className="font-mono text-sm text-muted-foreground">
 						{locked
-							? "Your pool opens once the game has enough players."
+							? "Guess today's songs first, then bank one."
 							: "Bank a few — one gets drawn at random on your day."}
 					</p>
 				</div>
@@ -199,8 +211,8 @@ export function SongPool({
 													? `Pause ${song.title}`
 													: `Play ${song.title}`
 											}
-											className="absolute inset-0 flex items-center justify-center bg-foreground/0 opacity-0 transition-all group-hover:bg-foreground/40 group-hover:opacity-100 focus-visible:bg-foreground/40 focus-visible:opacity-100 data-[playing=true]:bg-foreground/40 data-[playing=true]:opacity-100"
 											data-playing={playingId === song.id}
+											className="absolute inset-0 flex items-center justify-center opacity-0 transition-all group-hover:bg-foreground/40 group-hover:opacity-100 focus-visible:bg-foreground/40 focus-visible:opacity-100 data-[playing=true]:bg-foreground/40 data-[playing=true]:opacity-100"
 										>
 											<span className="flex size-10 items-center justify-center rounded-full border-2 border-foreground bg-brand text-brand-foreground">
 												{playingId === song.id ? (

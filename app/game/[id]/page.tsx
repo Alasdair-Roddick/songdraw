@@ -1,26 +1,22 @@
-import { and, desc, eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { ArrowLeftIcon } from "lucide-react";
 import { headers } from "next/headers";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { AppHeader } from "@/components/app-header";
-import { DailyRound } from "@/components/daily-round";
 import { DeleteGameDialog } from "@/components/delete-game-dialog";
 import { DevPanel } from "@/components/dev-panel";
 import { InviteMemberDialog } from "@/components/invite-member-dialog";
+import { LiveRefresh } from "@/components/live-refresh";
 import { MemberList } from "@/components/member-list";
 import { PendingInvites } from "@/components/pending-invites";
-import { SongPool } from "@/components/song-pool";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { game, gameInvite, gameMember } from "@/lib/db/game";
-import { guess, round } from "@/lib/db/round";
 import { user } from "@/lib/db/schema";
-import { submission } from "@/lib/db/submission";
-import { trackAsset } from "@/lib/db/track-asset";
 import { MIN_MEMBERS, SEATS } from "@/lib/game-rules";
 import { activeMembership } from "@/lib/games";
-import { gameDate } from "@/lib/round-date";
+import { gameChannel } from "@/lib/realtime";
 
 export default async function GamePage({
 	params,
@@ -64,62 +60,19 @@ export default async function GamePage({
 	const isOwner = current.ownerId === session.user.id;
 	const needed = MIN_MEMBERS - members.length;
 
-	// Your pool only. Answer secrecy starts here — no query on this page ever
-	// reaches another member's submissions, so there's nothing to leak.
-	const myPool = await db
-		.select({
-			id: submission.id,
-			title: trackAsset.title,
-			artist: trackAsset.artist,
-			artworkUrl: trackAsset.artworkUrl,
-			previewUrl: trackAsset.previewUrl,
-		})
-		.from(submission)
-		.innerJoin(trackAsset, eq(submission.trackId, trackAsset.id))
-		.where(
-			and(
-				eq(submission.gameId, id),
-				eq(submission.memberId, viewerMembership.id),
-				eq(submission.status, "pooled"),
-			),
-		)
-		.orderBy(desc(submission.submittedAt));
-
-	// M4-5, mirrored in the UI. The server enforces this on every POST; this
-	// only decides whether the button is offered.
-	const [todaysRound] = await db
-		.select({ id: round.id, submitterMemberId: submission.memberId })
-		.from(round)
-		.innerJoin(submission, eq(round.submissionId, submission.id))
-		.where(and(eq(round.gameId, id), eq(round.roundDate, gameDate())))
-		.limit(1);
-
-	let mustPlayFirst = false;
-	if (todaysRound && todaysRound.submitterMemberId !== viewerMembership.id) {
-		const [played] = await db
-			.select({ id: guess.id })
-			.from(guess)
-			.where(
-				and(
-					eq(guess.roundId, todaysRound.id),
-					eq(guess.guesserUserId, session.user.id),
-				),
-			)
-			.limit(1);
-		mustPlayFirst = !played;
-	}
-
 	return (
 		<div className="flex flex-1 flex-col">
+			{/* Roster, invites and pool all re-render when anyone changes them. */}
+			<LiveRefresh channels={[gameChannel(id)]} />
 			<AppHeader />
 			<main className="mx-auto flex w-full max-w-4xl flex-1 flex-col gap-10 px-6 py-8">
 				<div className="flex flex-col gap-5">
 					<Link
-						href="/home"
+						href="/rooms"
 						className="flex w-fit items-center gap-1.5 font-mono text-xs font-semibold tracking-widest uppercase text-muted-foreground hover:text-foreground"
 					>
 						<ArrowLeftIcon className="size-3.5" />
-						All games
+						All rooms
 					</Link>
 
 					<div className="flex flex-wrap items-center justify-between gap-3">
@@ -159,16 +112,6 @@ export default async function GamePage({
 
 				{/* Never renders in production; the route it calls 404s there too. */}
 				{process.env.NODE_ENV !== "production" && <DevPanel gameId={id} />}
-
-				<DailyRound gameId={id} members={members} viewerId={session.user.id} />
-
-				<SongPool
-					gameId={id}
-					songs={myPool}
-					locked={needed > 0}
-					needed={needed}
-					mustPlayFirst={mustPlayFirst}
-				/>
 
 				<section className="flex flex-col gap-3">
 					<h2 className="font-mono text-xs font-semibold tracking-widest uppercase text-muted-foreground">

@@ -4,6 +4,7 @@ import { db } from "@/lib/db";
 import { game } from "@/lib/db/game";
 import { closeRoundsBefore, drawForGame } from "@/lib/draw";
 import { notifyOps } from "@/lib/ntfy";
+import { notifyGame } from "@/lib/realtime";
 import { gameDate } from "@/lib/round-date";
 
 // Fired by the cron sidecar at 00:00 Australia/Adelaide. Idempotent by design
@@ -34,6 +35,10 @@ export async function POST(request: Request) {
 		try {
 			const result = await drawForGame(current.id, today);
 			results[result.status === "created" ? "created" : result.status] += 1;
+
+			// Wakes every open client straight into today's round.
+			if (result.status === "created")
+				await notifyGame(current.id, "round:drawn");
 
 			if (result.status === "dry") {
 				await notifyOps(

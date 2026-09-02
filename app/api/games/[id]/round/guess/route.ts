@@ -3,12 +3,12 @@ import { headers } from "next/headers";
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { bankSong } from "@/lib/db/bank";
 import { gameMember } from "@/lib/db/game";
 import { guess, round, statSnapshot } from "@/lib/db/round";
-import { submission } from "@/lib/db/submission";
 import { CORRECT_POINTS, FOOL_POINTS } from "@/lib/game-rules";
 import { activeMembership } from "@/lib/games";
-import { notifyUser } from "@/lib/realtime";
+import { notifyGame } from "@/lib/realtime";
 import { roundViewFor } from "@/lib/round";
 import { gameDate } from "@/lib/round-date";
 
@@ -41,10 +41,10 @@ export async function POST(
 		.select({
 			id: round.id,
 			status: round.status,
-			submitterMemberId: submission.memberId,
+			submitterUserId: bankSong.userId,
 		})
 		.from(round)
-		.innerJoin(submission, eq(round.submissionId, submission.id))
+		.innerJoin(bankSong, eq(round.bankSongId, bankSong.id))
 		.where(and(eq(round.gameId, gameId), eq(round.roundDate, gameDate())))
 		.limit(1);
 
@@ -57,7 +57,7 @@ export async function POST(
 			{ status: 409 },
 		);
 	}
-	if (today.submitterMemberId === membership.id) {
+	if (today.submitterUserId === session.user.id) {
 		return NextResponse.json(
 			{ error: "It's your song — you don't get to guess." },
 			{ status: 403 },
@@ -78,14 +78,8 @@ export async function POST(
 	}
 
 	// Scored here, never client-side (GamePlan §6 decision 7).
-	const isCorrect = guessedMemberId === today.submitterMemberId;
+	const isCorrect = guessedMember.userId === today.submitterUserId;
 	const points = isCorrect ? CORRECT_POINTS : 0;
-
-	const [submitter] = await db
-		.select({ userId: gameMember.userId })
-		.from(gameMember)
-		.where(eq(gameMember.id, today.submitterMemberId))
-		.limit(1);
 
 	try {
 		await db.transaction(async (tx) => {
@@ -118,12 +112,12 @@ export async function POST(
 				});
 
 			// Submission is a bluff: every wrong guess pays the submitter.
-			if (!isCorrect && submitter) {
+			if (!isCorrect) {
 				await tx
 					.insert(statSnapshot)
 					.values({
 						gameId,
-						userId: submitter.userId,
+						userId: today.submitterUserId,
 						foolPoints: FOOL_POINTS,
 					})
 					.onConflictDoUpdate({
@@ -141,9 +135,10 @@ export async function POST(
 		);
 	}
 
-	// Nudge the submitter's "who have I fooled" view (M4-3).
-	if (submitter) await notifyUser(submitter.userId, "round:guessed");
+	// Everyone in the room updates at once: the submitter's fooled-count, every
+	// guesser's waiting-count, and — if that was the last guess — the reveal.
+	await notifyGame(gameId, "round:guessed");
 
-	const view = await roundViewFor(gameId, session.user.id, membership.id);
+	const view = await roundViewFor(gameId, session.user.id);
 	return NextResponse.json(view, { status: 201 });
 }
