@@ -4,6 +4,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { round, statSnapshot } from "@/lib/db/round";
+import { isDevMode } from "@/lib/dev-mode";
 import { closeRoundsBefore, drawForGame } from "@/lib/draw";
 import { activeMembership } from "@/lib/games";
 import { notifyGame } from "@/lib/realtime";
@@ -13,7 +14,7 @@ import { gameDate } from "@/lib/round-date";
 // midnight to see a round. Refuses to exist in production — this endpoint can
 // fabricate and destroy rounds, so the gate is the whole safety story.
 export async function POST(request: Request) {
-	if (process.env.NODE_ENV === "production") {
+	if (!isDevMode()) {
 		return NextResponse.json({ error: "not found" }, { status: 404 });
 	}
 

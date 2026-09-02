@@ -31,9 +31,10 @@ Apply schema changes with `bunx drizzle-kit push`.
 ### Simulating the daily loop
 
 Rounds are drawn by cron at 00:00 Australia/Adelaide, which makes the play
-screen hard to reach in dev. A **Dev only** panel appears on the game page
-outside production with three actions (`POST /api/dev/round`, which 404s in
-production and is still membership-gated):
+screen hard to reach in dev. Set `DEV_MODE=true` in `.env.local` to reveal the
+membership-gated **Dev only** panel on the game page. It exposes three actions
+(`POST /api/dev/round`, which 404s unless that flag is enabled and always in
+production):
 
 - **Draw now** — draws today's round immediately. No-op if one already exists.
 - **Advance a day** — pushes existing rounds back one day, settles the ones

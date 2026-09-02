@@ -14,6 +14,7 @@ import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { game, gameInvite, gameMember } from "@/lib/db/game";
 import { user } from "@/lib/db/schema";
+import { isDevMode } from "@/lib/dev-mode";
 import { MIN_MEMBERS, SEATS } from "@/lib/game-rules";
 import { activeMembership } from "@/lib/games";
 import { gameChannel } from "@/lib/realtime";
@@ -125,7 +126,7 @@ export default async function GamePage({
 				</div>
 
 				{/* Never renders in production; the route it calls 404s there too. */}
-				{process.env.NODE_ENV !== "production" && <DevPanel gameId={id} />}
+				{isDevMode() && <DevPanel gameId={id} />}
 
 				<section className="flex flex-col gap-3">
 					<h2 className="font-mono text-xs font-semibold tracking-widest uppercase text-muted-foreground">
