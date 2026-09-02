@@ -4,6 +4,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { game, gameMember } from "@/lib/db/game";
+import { notifyUser } from "@/lib/realtime";
 
 export async function POST(request: Request) {
 	const session = await auth.api.getSession({ headers: await headers() });
@@ -31,6 +32,9 @@ export async function POST(request: Request) {
 
 		return newGame;
 	});
+
+	// Keep another open rooms tab in sync with the newly created game.
+	await notifyUser(session.user.id, "game:created");
 
 	return NextResponse.json(created);
 }
