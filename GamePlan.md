@@ -6,7 +6,7 @@
 
 ## 1. Product definition
 
-**Premise.** A persistent **Game** is created by one user, who shares an invite link (`/game/join/{uuid}`, valid 24h, re-issuable). Joining requires just a display name — no song required to join. Once a game reaches **3 members**, submission opens and the daily loop begins.
+**Premise.** A persistent **Game** is created by one user, who invites others **by display name from inside the app**. The invitee gets a notification — a toast if they're online, otherwise a badge on the bell — and accepts or declines in place. No song required to join. Once a game reaches **3 members**, submission opens and the daily loop begins.
 
 **The daily loop:**
 1. Each day, one pooled song is drawn. Every member (except the submitter) answers one question: **whose song is this?**
@@ -40,13 +40,13 @@
 Both are keyless, OAuth-free, uncapped, and return title/artist/album/artwork/30s preview URL. The provider interface is trivial (`search(query) -> [Track]`) and keeps you unhitched from any single platform forever. Cache every selected track in your own DB (`TrackAsset`) so gameplay never depends on a third party being up.
 
 **App — Next.js (App Router, TypeScript, Tailwind), full-stack.**
-With OAuth and spotipy gone, the Python backend lost its reason to exist. Route handlers cover everything: search proxy, game/guess/submission APIs, server-side scoring. One deployable, one language, and the answer-secrecy rule (ownership never sent pre-guess) is enforced in server components/route handlers. SWR polling for freshness; no WebSockets.
+With OAuth and spotipy gone, the Python backend lost its reason to exist. Route handlers cover everything: search proxy, game/guess/submission APIs, server-side scoring. One deployable, one language, and the answer-secrecy rule (ownership never sent pre-guess) is enforced in server components/route handlers. SWR polling for freshness, with Supabase Realtime layered on top as a wake-up ping for invite notifications.
 *If you want Python for the joy of it:* a FastAPI service owning game logic is a legitimate variant — but it's a want, not a need. Decide at M0-1 and don't revisit.
 
 **Identity — Better Auth (email + password), no OAuth.**
 A proper signup: email, password, display name — a real account, not a device cookie, so streaks survive a lost phone or a browser reinstall. Sessions last ~1 year and refresh on activity, so the daily open is cookie-only in practice. No SMTP dependency for login; the app sends no mail unless/until password reset is added later.
 
-**Database — Postgres 16** with Drizzle (or Prisma) + migrations. SQLite would honestly suffice, but you run Postgres everywhere already — consistency beats minimalism in a homelab.
+**Database — hosted Supabase Postgres** with Drizzle + `drizzle-kit push`. Same in dev and prod, so there's no container to run or back up — and it's what makes Supabase Realtime available for invite notifications without adding infrastructure.
 
 **Object storage — Cloudflare R2, for user-uploaded profile pictures.**
 S3-compatible, zero-egress, no container to run or back up. Uploaded avatars live in an R2 bucket (public via a custom domain); the dicebear-generated seed avatar remains the default so upload is optional, not required at signup. Accessed through a provider-neutral `@aws-sdk/client-s3` wrapper (`lib/storage.ts`), so any S3-compatible service is a config swap — see `docs/object-storage.md`.
@@ -54,7 +54,7 @@ S3-compatible, zero-egress, no container to run or back up. Uploaded avatars liv
 **Scheduling — one cron job.** The daily draw at 00:00 Adelaide: a cron sidecar container (or systemd timer on the host) curling an internal, token-protected `/api/internal/draw` endpoint. Idempotent by design (unique constraint on `round.date` per game) so double-fires are harmless.
 
 **Infra — what you already run:**
-- Docker Compose: `app` (Next.js), `db` (Postgres), `cron` (alpine + curl), optional `ntfy` — profile pictures go to Cloudflare R2, not a container
+- Docker Compose: `app` (Next.js), `migrate`, `cron` (alpine + curl), optional `ntfy` — Postgres is hosted Supabase and profile pictures go to Cloudflare R2, so neither is a container
 - Pangolin/Traefik tunnel fronts `song.roddickshare.space`
 - ntfy topics: `song-pool-dry`, `song-draw-failed`, `song-new-member`
 - Nightly `pg_dump` to the existing backup target
@@ -66,7 +66,7 @@ S3-compatible, zero-egress, no container to run or back up. Uploaded avatars liv
 - **User** — id, display name, email, password hash, avatar seed, avatar_url (nullable, R2 object URL when uploaded). Better Auth tables for sessions/accounts.
 - **Game** — id, name, owner_id, created_at, status, settings JSON (scoring weights, reveal policy).
 - **GameMember** — game_id, user_id, joined_at, role, status (active/left).
-- **InviteLink** — uuid, game_id, created_by, expires_at (+24h), used_count, revoked_at.
+- **GameInvite** — id, game_id, inviter_id, invitee_id, status (`pending`/`accepted`/`declined`/`cancelled`), created_at, responded_at. Unique (game_id, invitee_id) — re-inviting someone who declined flips their existing row back to `pending` rather than stacking duplicates.
 - **TrackAsset** — provider (`itunes`/`deezer`), provider_track_id, title, artists, album, artwork_url, preview_url, cached_at. Unique on (provider, provider_track_id).
 - **Submission** — game_id, member_id, track_id, submitted_at, status (`pooled`/`played`/`retired`), played_in_round_id (nullable). Unique (game_id, track_id) enforces the duplicate rule.
 - **Round** — game_id, round_date (unique per game), submission_id (the answer — never serialized pre-guess), status (open/closed), created_at.
@@ -100,8 +100,8 @@ DONEISH - **M2-4 Search UX** — debounced search box, result cards with preview
 
 ### M3 — Games, invites, join-with-a-song (weekend 3)
 - **M3-1 Create game** — owner becomes the sole member; no submission required at creation. *AC: game exists with just the owner as a member.*
-- **M3-2 Invite links** — 24h expiry, revoke/regenerate, used_count. *AC: expired link shows "ask for a fresh link" page.*
-- **M3-3 Join flow** — link → auth (if needed) → pick display name → member. No song required to join; submission unlocks for everyone once the game hits 3 members. *AC: cold join on a phone under a minute.*
+DONE - **M3-2 Invite notifications** — invite by display-name search; recipient gets a toast (Supabase Realtime) or a bell badge, and accepts/declines in place. Inviter sees pending invites + who's joined on the game page, and can cancel. *AC: invite a user by name; they see it without a reload; accepting puts the game on both accounts.*
+- **M3-3 Join polish** — leave-a-game, owner removing a member, re-invite after leaving. Submission unlocks for everyone once the game hits 3 members. *AC: a member who leaves stops seeing the game and can be re-invited.*
 - **M3-4 Duplicate rule** — reject already played not pooled as if it was pooled and not played that means they no one every saw it except from the user that requested it tracks from user not from all users (could add some fun to the game) - this will also be limited so that after some time they can play the same song again - at submission with friendly copy. *AC: second submission of the same track fails gracefully.*
 - **M3-5 Game home (pre-round)** — members, own pooled songs (private to you), "first round at midnight" state. *AC: you can see your banked songs; you cannot see anyone else's.*
 
@@ -138,7 +138,9 @@ DONEISH - **M2-4 Search UX** — debounced search box, result cards with preview
 5. Submitter scores by fooling; their day is the best day, not a bye.
 6. Midnight Adelaide, hard-coded. Reveal after own guess. Spoiler-free share grid.
 7. Answers never serialized pre-guess. Scoring server-side only.
-8. Single Next.js deployable + cron sidecar (unless ADR-001 says otherwise). No queues, no WebSockets, until measured pain.
+8. Single Next.js deployable + cron sidecar (unless ADR-001 says otherwise). No queues. One WebSocket: Supabase Realtime, and only as a wake-up ping — every payload is empty and the client re-fetches an authed endpoint, so SWR polling remains the correctness floor.
+9. Invites are in-app and by display name, not shareable links. You must have an account before you can be invited.
+10. Postgres is hosted Supabase in every environment. No database container; backups are Supabase's.
 
 
 ## 7. Stretch Goals
