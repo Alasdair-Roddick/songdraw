@@ -45,12 +45,25 @@ export async function POST(request: Request) {
 		// leave every read path blind — push existing rounds one day into the
 		// past. Real-today is then free for a fresh draw, and yesterday settles
 		// through the normal close path, streaks and all.
-		await db
-			.update(round)
-			.set({
-				roundDate: sql`(${round.roundDate} - INTERVAL '1 day')::date`,
-			})
-			.where(eq(round.gameId, gameId));
+		// Updating adjacent dates directly collides with the unique
+		// (game_id, round_date) constraint — yesterday tries to become the date
+		// that the previous row still holds. Move the whole game's history out
+		// of the way first, then bring it back one day earlier. The temporary
+		// century offset exists only inside this transaction.
+		await db.transaction(async (tx) => {
+			await tx
+				.update(round)
+				.set({
+					roundDate: sql`(${round.roundDate} + INTERVAL '100 years')::date`,
+				})
+				.where(eq(round.gameId, gameId));
+			await tx
+				.update(round)
+				.set({
+					roundDate: sql`(${round.roundDate} - INTERVAL '100 years 1 day')::date`,
+				})
+				.where(eq(round.gameId, gameId));
+		});
 
 		const closed = await closeRoundsBefore(today);
 		const result = await drawForGame(gameId, today);
