@@ -12,19 +12,25 @@ import {
 // attaching a custom domain (or enabling the r2.dev subdomain) in the
 // Cloudflare dashboard. R2 has no PutBucketPolicy, so public access can't be
 // granted from code. See docs/object-storage.md.
-const BUCKET = process.env.S3_BUCKET!;
-const PUBLIC_URL = process.env.S3_PUBLIC_URL!;
-const PUBLIC_HOST = new URL(PUBLIC_URL).host;
+function getStorage() {
+	const bucket = process.env.S3_BUCKET!;
+	const publicUrl = process.env.S3_PUBLIC_URL!;
 
-const s3 = new S3Client({
-	endpoint: process.env.S3_ENDPOINT,
-	region: process.env.S3_REGION || "auto",
-	forcePathStyle: true,
-	credentials: {
-		accessKeyId: process.env.S3_ACCESS_KEY_ID!,
-		secretAccessKey: process.env.S3_SECRET_ACCESS_KEY!,
-	},
-});
+	return {
+		bucket,
+		publicUrl,
+		publicHost: new URL(publicUrl).host,
+		s3: new S3Client({
+			endpoint: process.env.S3_ENDPOINT,
+			region: process.env.S3_REGION || "auto",
+			forcePathStyle: true,
+			credentials: {
+				accessKeyId: process.env.S3_ACCESS_KEY_ID!,
+				secretAccessKey: process.env.S3_SECRET_ACCESS_KEY!,
+			},
+		}),
+	};
+}
 
 const EXTENSION_BY_TYPE: Record<string, string> = {
 	"image/jpeg": "jpg",
@@ -33,19 +39,20 @@ const EXTENSION_BY_TYPE: Record<string, string> = {
 };
 
 export async function uploadAvatar(userId: string, file: File) {
+	const { bucket, publicUrl, s3 } = getStorage();
 	const key = `avatars/${userId}/${crypto.randomUUID()}.${EXTENSION_BY_TYPE[file.type]}`;
 	const buffer = Buffer.from(await file.arrayBuffer());
 
 	await s3.send(
 		new PutObjectCommand({
-			Bucket: BUCKET,
+		Bucket: bucket,
 			Key: key,
 			Body: buffer,
 			ContentType: file.type,
 		}),
 	);
 
-	return `${PUBLIC_URL}/${key}`;
+	return `${publicUrl}/${key}`;
 }
 
 // Deletes an avatar object we host. Matches on our storage host + the
@@ -56,6 +63,7 @@ export async function uploadAvatar(userId: string, file: File) {
 // avatar swap over a stale orphan isn't worth it.
 export async function deleteAvatarIfOwned(url: string | null | undefined) {
 	if (!url) return;
+	const { bucket, publicHost, s3 } = getStorage();
 
 	let parsed: URL;
 	try {
@@ -66,14 +74,14 @@ export async function deleteAvatarIfOwned(url: string | null | undefined) {
 
 	const marker = "/avatars/";
 	const idx = parsed.pathname.indexOf(marker);
-	if (parsed.host !== PUBLIC_HOST || idx === -1) return;
+	if (parsed.host !== publicHost || idx === -1) return;
 
 	// Object key is always `avatars/<userId>/<uuid>.<ext>` regardless of any
 	// bucket segment the public host puts in front of it.
 	const key = parsed.pathname.slice(idx + 1);
 
 	try {
-		await s3.send(new DeleteObjectCommand({ Bucket: BUCKET, Key: key }));
+		await s3.send(new DeleteObjectCommand({ Bucket: bucket, Key: key }));
 	} catch (err) {
 		console.error(`failed to delete old avatar ${key}`, err);
 	}
