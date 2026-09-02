@@ -4,6 +4,11 @@ set -eu
 : "${APP_URL:?APP_URL not set}"
 : "${CRON_TOKEN:?CRON_TOKEN not set}"
 
+if [ "$CRON_TOKEN" = "changeme" ] || [ "${#CRON_TOKEN}" -lt 32 ]; then
+	echo "CRON_TOKEN must be a non-placeholder secret of at least 32 characters" >&2
+	exit 1
+fi
+
 # TZ is baked into the image as Australia/Adelaide, so "0 0 * * *" fires at
 # local midnight regardless of the host's timezone — see GamePlan.md §2.
 cat > /etc/crontabs/root <<EOF
