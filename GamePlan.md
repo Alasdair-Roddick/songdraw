@@ -48,13 +48,13 @@ A proper signup: email, password, display name — a real account, not a device 
 
 **Database — Postgres 16** with Drizzle (or Prisma) + migrations. SQLite would honestly suffice, but you run Postgres everywhere already — consistency beats minimalism in a homelab.
 
-**Object storage — RustFS, for user-uploaded profile pictures.**
-S3-compatible, self-hosted, one more container. Uploaded avatars live in RustFS (bucket per env); the dicebear-generated seed avatar remains the default so upload is optional, not required at signup.
+**Object storage — Cloudflare R2, for user-uploaded profile pictures.**
+S3-compatible, zero-egress, no container to run or back up. Uploaded avatars live in an R2 bucket (public via a custom domain); the dicebear-generated seed avatar remains the default so upload is optional, not required at signup. Accessed through a provider-neutral `@aws-sdk/client-s3` wrapper (`lib/storage.ts`), so any S3-compatible service is a config swap — see `docs/object-storage.md`.
 
 **Scheduling — one cron job.** The daily draw at 00:00 Adelaide: a cron sidecar container (or systemd timer on the host) curling an internal, token-protected `/api/internal/draw` endpoint. Idempotent by design (unique constraint on `round.date` per game) so double-fires are harmless.
 
 **Infra — what you already run:**
-- Docker Compose: `app` (Next.js), `db` (Postgres), `rustfs` (profile picture storage), `cron` (alpine + curl), optional `ntfy`
+- Docker Compose: `app` (Next.js), `db` (Postgres), `cron` (alpine + curl), optional `ntfy` — profile pictures go to Cloudflare R2, not a container
 - Pangolin/Traefik tunnel fronts `song.roddickshare.space`
 - ntfy topics: `song-pool-dry`, `song-draw-failed`, `song-new-member`
 - Nightly `pg_dump` to the existing backup target
@@ -63,7 +63,7 @@ S3-compatible, self-hosted, one more container. Uploaded avatars live in RustFS 
 
 ## 4. Data model
 
-- **User** — id, display name, email, password hash, avatar seed, avatar_url (nullable, RustFS object key when uploaded). Better Auth tables for sessions/accounts.
+- **User** — id, display name, email, password hash, avatar seed, avatar_url (nullable, R2 object URL when uploaded). Better Auth tables for sessions/accounts.
 - **Game** — id, name, owner_id, created_at, status, settings JSON (scoring weights, reveal policy).
 - **GameMember** — game_id, user_id, joined_at, role, status (active/left).
 - **InviteLink** — uuid, game_id, created_by, expires_at (+24h), used_count, revoked_at.

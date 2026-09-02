@@ -5,7 +5,7 @@ See [GamePlan.md](./GamePlan.md) for the full product spec, data model, and mile
 
 ## Stack
 
-Next.js (App Router, TypeScript, Tailwind) full-stack app, Postgres, RustFS (profile picture storage), and a cron sidecar for the daily draw. Package manager is bun.
+Next.js (App Router, TypeScript, Tailwind) full-stack app, Postgres, Cloudflare R2 (profile picture storage), and a cron sidecar for the daily draw. Package manager is bun.
 
 ## Local development
 
@@ -16,7 +16,8 @@ bun dev
 
 Open [http://localhost:3000](http://localhost:3000).
 
-This runs the app alone — for auth, uploads, or the draw job you need the rest of the stack (below).
+This runs the app alone — for auth or the draw job you need the rest of the stack (below).
+Avatar uploads need Cloudflare R2 credentials in `.env` (see [docs/object-storage.md](./docs/object-storage.md)); R2 is used in every environment, so there's no local object-storage container.
 
 ## Full stack (Docker Compose)
 
@@ -29,7 +30,6 @@ Services:
 
 - `app` — the Next.js app, built via the root `Dockerfile` (bun for install/build, standalone Node output at runtime)
 - `db` — Postgres 16
-- `rustfs` — S3-compatible object storage for profile pictures, console at `:9011`
 - `cron` — daily draw trigger (`docker/cron`), fires `POST /api/internal/draw` at midnight Australia/Adelaide
 - `ntfy` — notifications (`song-pool-dry`, `song-draw-failed`, `song-new-member` topics)
 
