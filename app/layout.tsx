@@ -14,7 +14,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-	metadataBase: new URL("https://songdraw.fly.dev"),
+	metadataBase: new URL("https://songdraw.party"),
 	title: {
 		default: "SongDraw",
 		template: "%s | SongDraw",
@@ -25,13 +25,11 @@ export const metadata: Metadata = {
 		description: "Daily whose-song-is-this for a private friend group.",
 		siteName: "SongDraw",
 		type: "website",
-		images: [{ url: "/social-preview.png", width: 1200, height: 630 }],
 	},
 	twitter: {
 		card: "summary_large_image",
 		title: "SongDraw",
 		description: "Daily whose-song-is-this for a private friend group.",
-		images: ["/social-preview.png"],
 	},
 };
 
