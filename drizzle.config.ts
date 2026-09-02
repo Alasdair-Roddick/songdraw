@@ -6,11 +6,20 @@ import { defineConfig } from "drizzle-kit";
 config({ path: ".env" });
 config({ path: ".env.local", override: true });
 
+const databaseUrl = process.env.DATABASE_URL;
+if (!databaseUrl) throw new Error("DATABASE_URL is required");
+
 export default defineConfig({
-	schema: ["./lib/db/schema.ts", "./lib/db/track-asset.ts", "./lib/db/game.ts", "./lib/db/bank.ts", "./lib/db/round.ts"],
+	schema: [
+		"./lib/db/schema.ts",
+		"./lib/db/track-asset.ts",
+		"./lib/db/game.ts",
+		"./lib/db/bank.ts",
+		"./lib/db/round.ts",
+	],
 	out: "./drizzle",
 	dialect: "postgresql",
 	dbCredentials: {
-		url: process.env.DATABASE_URL!,
+		url: databaseUrl,
 	},
 });
