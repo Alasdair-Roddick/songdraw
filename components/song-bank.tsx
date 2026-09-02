@@ -12,18 +12,9 @@ import { AnimatePresence, motion } from "motion/react";
 import { useRef, useState } from "react";
 import { toast } from "sonner";
 import useSWR from "swr";
-import { SongSearch } from "@/components/song-search";
+import { BankSongDialog } from "@/components/bank-song-dialog";
 import { Button } from "@/components/ui/button";
-import {
-	Dialog,
-	DialogContent,
-	DialogDescription,
-	DialogHeader,
-	DialogTitle,
-	DialogTrigger,
-} from "@/components/ui/dialog";
 import { useRealtimeSignal } from "@/hooks/use-realtime";
-import type { Track } from "@/lib/music/types";
 
 type BankSong = {
 	id: string;
@@ -58,7 +49,6 @@ export function SongBank({ channels }: { channels: string[] }) {
 		mutate();
 	});
 
-	const [open, setOpen] = useState(false);
 	const [playingId, setPlayingId] = useState<string | null>(null);
 	const [removing, setRemoving] = useState<string | null>(null);
 	const audioRef = useRef<HTMLAudioElement>(null);
@@ -78,22 +68,6 @@ export function SongBank({ channels }: { channels: string[] }) {
 		audio.src = song.previewUrl;
 		audio.play().catch(() => setPlayingId(null));
 		setPlayingId(song.id);
-	}
-
-	async function add(track: Track) {
-		setOpen(false);
-		const res = await fetch("/api/bank", {
-			method: "POST",
-			headers: { "Content-Type": "application/json" },
-			body: JSON.stringify(track),
-		});
-		if (!res.ok) {
-			const body = await res.json().catch(() => null);
-			toast.error(body?.error ?? "Couldn't bank that song — try again.");
-			return;
-		}
-		toast.success(`Banked ${track.title}`);
-		mutate();
 	}
 
 	async function remove(song: BankSong) {
@@ -135,8 +109,12 @@ export function SongBank({ channels }: { channels: string[] }) {
 						{outstanding} left to guess
 					</span>
 				) : (
-					<Dialog open={open} onOpenChange={setOpen}>
-						<DialogTrigger asChild>
+					<BankSongDialog
+						onBanked={(track) => {
+							toast.success(`Banked ${track.title}`);
+							mutate();
+						}}
+						trigger={
 							<Button
 								type="button"
 								variant="brand"
@@ -145,18 +123,8 @@ export function SongBank({ channels }: { channels: string[] }) {
 								<PlusIcon />
 								Bank a song
 							</Button>
-						</DialogTrigger>
-						<DialogContent className="max-h-[85vh] overflow-y-auto rounded-none border-2 border-foreground sm:max-w-lg">
-							<DialogHeader>
-								<DialogTitle>Bank a song</DialogTitle>
-								<DialogDescription>
-									Nobody sees it until it's drawn. Pick something that frames
-									someone else.
-								</DialogDescription>
-							</DialogHeader>
-							<SongSearch onConfirm={add} />
-						</DialogContent>
-					</Dialog>
+						}
+					/>
 				)}
 			</div>
 
