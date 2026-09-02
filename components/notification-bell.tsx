@@ -1,9 +1,7 @@
 "use client";
 
 import { BellIcon } from "lucide-react";
-import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { toast } from "sonner";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import {
@@ -13,35 +11,11 @@ import {
 } from "@/components/ui/popover";
 import { useInvites } from "@/hooks/use-invites";
 
+// The catch-up surface. Acting on the toast is the primary path — this is for
+// invites that arrived while you were away, or that you dismissed.
 export function NotificationBell({ channel }: { channel: string | null }) {
-	const router = useRouter();
-	const { invites, refresh } = useInvites(channel);
+	const { invites, respond, busyId } = useInvites(channel);
 	const [open, setOpen] = useState(false);
-	const [busy, setBusy] = useState<string | null>(null);
-
-	async function respond(id: string, action: "accept" | "decline") {
-		setBusy(id);
-		const res = await fetch(`/api/invites/${id}`, {
-			method: "PATCH",
-			headers: { "Content-Type": "application/json" },
-			body: JSON.stringify({ action }),
-		});
-		setBusy(null);
-
-		if (!res.ok) {
-			toast.error("Couldn't respond to that invite — try again.");
-			return;
-		}
-
-		const body = await res.json().catch(() => null);
-		await refresh();
-
-		if (action === "accept") {
-			toast.success(`You're in — ${body?.game?.name ?? "game joined"}`);
-			router.refresh();
-		}
-		if (invites.length <= 1) setOpen(false);
-	}
 
 	return (
 		<Popover open={open} onOpenChange={setOpen}>
@@ -59,7 +33,7 @@ export function NotificationBell({ channel }: { channel: string | null }) {
 				>
 					<BellIcon />
 					{invites.length > 0 && (
-						<span className="absolute -top-0.5 -right-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-brand px-1 font-mono text-[10px] font-bold text-brand-foreground tabular-nums">
+						<span className="absolute -top-0.5 -right-0.5 flex h-4 min-w-4 items-center justify-center rounded-full border border-foreground bg-brand px-1 font-mono text-[10px] font-bold text-brand-foreground tabular-nums">
 							{invites.length}
 						</span>
 					)}
@@ -104,8 +78,8 @@ export function NotificationBell({ channel }: { channel: string | null }) {
 										variant="brand"
 										size="sm"
 										className="flex-1 rounded-full"
-										disabled={busy === invite.id}
-										onClick={() => respond(invite.id, "accept")}
+										disabled={busyId === invite.id}
+										onClick={() => respond(invite, "accept")}
 									>
 										Accept
 									</Button>
@@ -114,8 +88,8 @@ export function NotificationBell({ channel }: { channel: string | null }) {
 										variant="outline"
 										size="sm"
 										className="flex-1 rounded-full"
-										disabled={busy === invite.id}
-										onClick={() => respond(invite.id, "decline")}
+										disabled={busyId === invite.id}
+										onClick={() => respond(invite, "decline")}
 									>
 										Decline
 									</Button>

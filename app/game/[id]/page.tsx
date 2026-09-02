@@ -4,16 +4,16 @@ import { headers } from "next/headers";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { AppHeader } from "@/components/app-header";
+import { DeleteGameDialog } from "@/components/delete-game-dialog";
 import { InviteMemberDialog } from "@/components/invite-member-dialog";
+import { MemberList } from "@/components/member-list";
 import { PendingInvites } from "@/components/pending-invites";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { game, gameInvite, gameMember } from "@/lib/db/game";
 import { user } from "@/lib/db/schema";
+import { MIN_MEMBERS, SEATS } from "@/lib/game-rules";
 import { activeMembership } from "@/lib/games";
-
-const MIN_MEMBERS = 3;
 
 export default async function GamePage({
 	params,
@@ -53,13 +53,14 @@ export default async function GamePage({
 		.innerJoin(user, eq(gameInvite.inviteeId, user.id))
 		.where(and(eq(gameInvite.gameId, id), eq(gameInvite.status, "pending")));
 
+	const isOwner = current.ownerId === session.user.id;
 	const needed = MIN_MEMBERS - members.length;
 
 	return (
 		<div className="flex flex-1 flex-col">
 			<AppHeader />
-			<main className="mx-auto flex w-full max-w-4xl flex-1 flex-col gap-8 px-6 py-8">
-				<div className="flex flex-col gap-4">
+			<main className="mx-auto flex w-full max-w-4xl flex-1 flex-col gap-10 px-6 py-8">
+				<div className="flex flex-col gap-5">
 					<Link
 						href="/home"
 						className="flex w-fit items-center gap-1.5 font-mono text-xs font-semibold tracking-widest uppercase text-muted-foreground hover:text-foreground"
@@ -67,58 +68,52 @@ export default async function GamePage({
 						<ArrowLeftIcon className="size-3.5" />
 						All games
 					</Link>
+
 					<div className="flex flex-wrap items-center justify-between gap-3">
-						<h1 className="text-3xl font-black tracking-tight uppercase">
+						<h1 className="text-4xl font-black tracking-tighter uppercase leading-[0.95]">
 							{current.name}
 						</h1>
 						<InviteMemberDialog gameId={id} />
 					</div>
-					{needed > 0 ? (
-						<p className="border-2 border-foreground bg-brand px-3 py-2 font-mono text-sm font-semibold text-brand-foreground">
-							Invite {needed} more {needed === 1 ? "person" : "people"} to
-							unlock the daily round.
-						</p>
-					) : (
+
+					{/* Three blocks, one per seat — the unlock rule as a picture. */}
+					<div className="flex flex-col gap-2.5 border-2 border-foreground p-4">
+						<div className="flex items-center justify-between gap-3">
+							<span className="font-mono text-xs font-semibold tracking-widest uppercase text-muted-foreground">
+								{needed > 0 ? "Locked" : "Unlocked"}
+							</span>
+							<span className="font-mono text-xs font-semibold tracking-widest uppercase tabular-nums">
+								{Math.min(members.length, MIN_MEMBERS)} / {MIN_MEMBERS}
+							</span>
+						</div>
+						<div className="flex gap-1.5">
+							{SEATS.map((seat, i) => (
+								<div
+									key={seat}
+									className={`h-3 flex-1 border-2 border-foreground ${
+										i < members.length ? "bg-brand" : "bg-transparent"
+									}`}
+								/>
+							))}
+						</div>
 						<p className="font-mono text-sm text-muted-foreground">
-							First round drops at midnight.
+							{needed > 0
+								? `Invite ${needed} more ${needed === 1 ? "person" : "people"} to start the daily round.`
+								: "First round drops at midnight."}
 						</p>
-					)}
+					</div>
 				</div>
 
 				<section className="flex flex-col gap-3">
 					<h2 className="font-mono text-xs font-semibold tracking-widest uppercase text-muted-foreground">
 						Members · {members.length}
 					</h2>
-					<ul className="divide-y-2 divide-foreground border-2 border-foreground">
-						{members.map((member) => (
-							<li
-								key={member.id}
-								className="flex items-center justify-between gap-3 p-3"
-							>
-								<div className="flex min-w-0 items-center gap-2.5">
-									<Avatar>
-										{member.user.image && (
-											<AvatarImage
-												src={member.user.image}
-												alt={member.user.name}
-											/>
-										)}
-										<AvatarFallback>
-											{member.user.name.charAt(0).toUpperCase()}
-										</AvatarFallback>
-									</Avatar>
-									<span className="truncate font-medium">
-										{member.user.name}
-									</span>
-								</div>
-								{member.role === "owner" && (
-									<span className="shrink-0 font-mono text-xs tracking-widest uppercase text-muted-foreground">
-										Owner
-									</span>
-								)}
-							</li>
-						))}
-					</ul>
+					<MemberList
+						gameId={id}
+						members={members}
+						viewerId={session.user.id}
+						viewerIsOwner={isOwner}
+					/>
 				</section>
 
 				{pending.length > 0 && (
@@ -127,6 +122,15 @@ export default async function GamePage({
 							Awaiting reply · {pending.length}
 						</h2>
 						<PendingInvites invites={pending} />
+					</section>
+				)}
+
+				{isOwner && (
+					<section className="mt-auto flex flex-col gap-3">
+						<h2 className="font-mono text-xs font-semibold tracking-widest uppercase text-destructive">
+							Danger zone
+						</h2>
+						<DeleteGameDialog gameId={id} gameName={current.name} />
 					</section>
 				)}
 			</main>

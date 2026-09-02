@@ -8,8 +8,7 @@ import { CreateGameDialog } from "@/components/create-game-dialog";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { game, gameMember } from "@/lib/db/game";
-
-const MIN_MEMBERS = 3;
+import { MIN_MEMBERS, SEATS } from "@/lib/game-rules";
 
 export default async function HomePage() {
 	const session = await auth.api.getSession({ headers: await headers() });
@@ -46,8 +45,11 @@ export default async function HomePage() {
 			<main className="mx-auto flex w-full max-w-4xl flex-1 flex-col gap-6 px-6 py-8">
 				<div className="flex flex-wrap items-end justify-between gap-3">
 					<div className="flex flex-col gap-1">
-						<h1 className="text-3xl font-black tracking-tight uppercase">
-							Your games
+						<h1 className="text-4xl font-black tracking-tighter uppercase leading-[0.95]">
+							Your{" "}
+							<span className="-rotate-1 inline-block bg-brand px-3 text-brand-foreground">
+								games
+							</span>
 						</h1>
 						<p className="font-mono text-sm text-muted-foreground">
 							{games.length === 0
@@ -59,9 +61,10 @@ export default async function HomePage() {
 				</div>
 
 				{games.length === 0 ? (
-					<div className="border-2 border-foreground p-8 text-center">
+					<div className="flex flex-col items-center gap-1 border-2 border-foreground p-10 text-center">
+						<p className="font-bold tracking-tight">No games yet</p>
 						<p className="font-mono text-sm text-muted-foreground">
-							Create a game, then invite your friends by name.
+							Create one, then invite your friends by name.
 						</p>
 					</div>
 				) : (
@@ -86,6 +89,18 @@ export default async function HomePage() {
 											</span>
 										</div>
 										<div className="flex shrink-0 items-center gap-3">
+											{/* Seat meter mirrors the game page, so "how close are we"
+											    reads the same in both places. */}
+											<div className="hidden gap-1 sm:flex">
+												{SEATS.map((seat, i) => (
+													<div
+														key={seat}
+														className={`h-2.5 w-5 border-2 border-current ${
+															i < members ? "bg-current" : "bg-transparent"
+														}`}
+													/>
+												))}
+											</div>
 											<span className="font-mono text-xs font-semibold tracking-widest uppercase">
 												{needed > 0 ? `${needed} to unlock` : "Live"}
 											</span>
