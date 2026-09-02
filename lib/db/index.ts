@@ -1,6 +1,7 @@
 import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 import * as gameSchema from "./game";
+import * as roundSchema from "./round";
 import * as authSchema from "./schema";
 import * as submissionSchema from "./submission";
 import * as trackAssetSchema from "./track-asset";
@@ -10,6 +11,7 @@ const schema = {
 	...trackAssetSchema,
 	...gameSchema,
 	...submissionSchema,
+	...roundSchema,
 };
 
 const client = postgres(process.env.DATABASE_URL!);

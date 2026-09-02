@@ -37,11 +37,14 @@ export function SongPool({
 	songs,
 	locked,
 	needed,
+	mustPlayFirst,
 }: {
 	gameId: string;
 	songs: PooledSong[];
 	locked: boolean;
 	needed: number;
+	/** M4-5: a round is open and you haven't guessed yet. */
+	mustPlayFirst: boolean;
 }) {
 	const router = useRouter();
 	const [open, setOpen] = useState(false);
@@ -117,6 +120,11 @@ export function SongPool({
 					<span className="flex items-center gap-1.5 font-mono text-xs font-semibold tracking-widest uppercase text-muted-foreground">
 						<LockIcon className="size-3.5" />
 						{needed} more to unlock
+					</span>
+				) : mustPlayFirst ? (
+					<span className="flex items-center gap-1.5 font-mono text-xs font-semibold tracking-widest uppercase text-muted-foreground">
+						<LockIcon className="size-3.5" />
+						Guess today's song first
 					</span>
 				) : (
 					<Dialog open={open} onOpenChange={setOpen}>

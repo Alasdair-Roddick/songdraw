@@ -9,3 +9,8 @@ export const SEATS = ["first", "second", "third"] as const;
 // How long a played track is off-limits before someone may bank it again
 // (GamePlan M3-4). Long enough that nobody remembers whose it was.
 export const REPLAY_AFTER_DAYS = 180;
+
+// Scoring v1 (GamePlan §2). A correct guess is worth twice what fooling one
+// person is, so guessing well and bluffing well are both viable.
+export const CORRECT_POINTS = 100;
+export const FOOL_POINTS = 50;

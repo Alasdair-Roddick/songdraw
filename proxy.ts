@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 
 const AUTH_PAGES = ["/login", "/signup"];
-const PROTECTED_PREFIXES = ["/home", "/search"];
+const PROTECTED_PREFIXES = ["/home", "/search", "/game"];
 const SESSION_COOKIES = [
 	"better-auth.session_token",
 	"__Secure-better-auth.session_token",
@@ -35,5 +35,11 @@ export async function proxy(request: NextRequest) {
 }
 
 export const config = {
-	matcher: ["/home/:path*", "/search/:path*", "/login", "/signup"],
+	matcher: [
+		"/home/:path*",
+		"/search/:path*",
+		"/game/:path*",
+		"/login",
+		"/signup",
+	],
 };

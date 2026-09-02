@@ -106,11 +106,11 @@ DONE - **M3-4 Duplicate rule** — per-user, not per-game: re-banking a track *y
 DONE - **M3-5 Game home (pre-round)** — members, own pooled songs (private to you), seat meter toward the 3-member unlock, "first round at midnight" state. Pool is private by construction: no query on the page reaches another member's submissions. *AC: you can see your banked songs; you cannot see anyone else's.*
 
 ### M4 — Round engine (weekend 4)
-- **M4-1 Draw job** — algorithm per §4, cron-triggered, transactional, idempotent; skip+alert on dry pool. *AC: double-firing the endpoint creates exactly one round; dry pool pings ntfy.*
-- **M4-2 Guess API** — one guess per member per round, server-scored; ownership absent from all pre-guess payloads. *AC: network-tab audit shows no ownership leak before guessing.*
-- **M4-3 Submitter experience** — drawn member sees "your song is up" + live fooled-count instead of a guess UI; fool points accrue per wrong guess. *AC: wrong guess by A immediately reflects in submitter's view and StatSnapshot.*
-- **M4-4 Round lifecycle + streaks** — close at midnight, mark misses, update streaks (submitter days count as played). *AC: three consecutive played days = streak 3; a miss resets; submitter day doesn't break it.*
-- **M4-5 Post-guess submission gate** — the "add tomorrow's song" flow unlocks only after your guess (or automatically on your submitter day). *AC: submission endpoint 403s before guessing, 200s after.*
+DONE - **M4-1 Draw job** — two-stage seeded draw per §4, cron-triggered, transactional, idempotent; skip+ntfy on dry pool. *AC: double-firing the endpoint creates exactly one round; dry pool pings ntfy.* Verified against the live DB.
+DONE - **M4-2 Guess API** — one guess per member per round (unique index), server-scored; ownership absent from all pre-guess payloads. All secrecy branching lives in `lib/round.ts`. *AC: network-tab audit shows no ownership leak before guessing.*
+DONE - **M4-3 Submitter experience** — drawn member sees "your song is up" + live fooled-count instead of a guess UI; fool points accrue per wrong guess, pushed via Realtime. *AC: wrong guess by A immediately reflects in submitter's view and StatSnapshot.*
+DONE - **M4-4 Round lifecycle + streaks** — closed by the same cron before it draws, misses marked, streaks settled (submitter days count as played). *AC: three consecutive played days = streak 3; a miss resets; submitter day doesn't break it.* Streak cases covered by the draw test.
+DONE - **M4-5 Post-guess submission gate** — banking unlocks only after your guess (or automatically on your submitter day); before the first round ever drawn there's nothing to gate, which is how the pool seeds. *AC: submission endpoint 403s before guessing, 200s after.*
 - **M4-6 Ops runbook** — regenerate failed round, force-close, recompute stats; documented. *AC: /docs/runbook.md exists and each command tested once.*
 
 ### M5 — Play experience (weekend 5)

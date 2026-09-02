@@ -4,6 +4,7 @@ import { headers } from "next/headers";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { AppHeader } from "@/components/app-header";
+import { DailyRound } from "@/components/daily-round";
 import { DeleteGameDialog } from "@/components/delete-game-dialog";
 import { InviteMemberDialog } from "@/components/invite-member-dialog";
 import { MemberList } from "@/components/member-list";
@@ -12,11 +13,13 @@ import { SongPool } from "@/components/song-pool";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { game, gameInvite, gameMember } from "@/lib/db/game";
+import { guess, round } from "@/lib/db/round";
 import { user } from "@/lib/db/schema";
 import { submission } from "@/lib/db/submission";
 import { trackAsset } from "@/lib/db/track-asset";
 import { MIN_MEMBERS, SEATS } from "@/lib/game-rules";
 import { activeMembership } from "@/lib/games";
+import { gameDate } from "@/lib/round-date";
 
 export default async function GamePage({
 	params,
@@ -81,6 +84,30 @@ export default async function GamePage({
 		)
 		.orderBy(desc(submission.submittedAt));
 
+	// M4-5, mirrored in the UI. The server enforces this on every POST; this
+	// only decides whether the button is offered.
+	const [todaysRound] = await db
+		.select({ id: round.id, submitterMemberId: submission.memberId })
+		.from(round)
+		.innerJoin(submission, eq(round.submissionId, submission.id))
+		.where(and(eq(round.gameId, id), eq(round.roundDate, gameDate())))
+		.limit(1);
+
+	let mustPlayFirst = false;
+	if (todaysRound && todaysRound.submitterMemberId !== viewerMembership.id) {
+		const [played] = await db
+			.select({ id: guess.id })
+			.from(guess)
+			.where(
+				and(
+					eq(guess.roundId, todaysRound.id),
+					eq(guess.guesserUserId, session.user.id),
+				),
+			)
+			.limit(1);
+		mustPlayFirst = !played;
+	}
+
 	return (
 		<div className="flex flex-1 flex-col">
 			<AppHeader />
@@ -129,11 +156,14 @@ export default async function GamePage({
 					</div>
 				</div>
 
+				<DailyRound gameId={id} members={members} viewerId={session.user.id} />
+
 				<SongPool
 					gameId={id}
 					songs={myPool}
 					locked={needed > 0}
 					needed={needed}
+					mustPlayFirst={mustPlayFirst}
 				/>
 
 				<section className="flex flex-col gap-3">

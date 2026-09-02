@@ -4,11 +4,13 @@ import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { gameMember } from "@/lib/db/game";
+import { guess, round } from "@/lib/db/round";
 import { submission } from "@/lib/db/submission";
 import { MIN_MEMBERS, REPLAY_AFTER_DAYS } from "@/lib/game-rules";
 import { activeMembership } from "@/lib/games";
 import { upsertTrackAsset } from "@/lib/music/cache";
 import type { Track } from "@/lib/music/types";
+import { gameDate } from "@/lib/round-date";
 
 export async function POST(
 	request: Request,
@@ -35,6 +37,39 @@ export async function POST(
 			{ error: `Submission unlocks at ${MIN_MEMBERS} members.` },
 			{ status: 403 },
 		);
+	}
+
+	// M4-5: once a round is running, playing gates submitting — the pool can
+	// only be fed by people who actually showed up. Being the submitter counts
+	// as playing, so your own day doesn't lock you out. Before the first round
+	// ever drawn there's nothing to gate on, which is how the pool gets seeded.
+	const [today] = await db
+		.select({
+			id: round.id,
+			submitterMemberId: submission.memberId,
+		})
+		.from(round)
+		.innerJoin(submission, eq(round.submissionId, submission.id))
+		.where(and(eq(round.gameId, gameId), eq(round.roundDate, gameDate())))
+		.limit(1);
+
+	if (today && today.submitterMemberId !== membership.id) {
+		const [played] = await db
+			.select({ id: guess.id })
+			.from(guess)
+			.where(
+				and(
+					eq(guess.roundId, today.id),
+					eq(guess.guesserUserId, session.user.id),
+				),
+			)
+			.limit(1);
+		if (!played) {
+			return NextResponse.json(
+				{ error: "Guess today's song first." },
+				{ status: 403 },
+			);
+		}
 	}
 
 	const track: Track = await request.json().catch(() => null);
