@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useCallback, useEffect } from "react";
 import useSWR from "swr";
 import { useRealtimeSignal } from "@/hooks/use-realtime";
 import type { FeedEntry } from "@/lib/round";
@@ -55,5 +55,22 @@ export function useFeed(channels: string[]) {
 		};
 	}, [data, mutate]);
 
-	return { entries: data ?? [], isLoading, refresh: mutate };
+	/**
+	 * Swap one game's round in place after an action, then revalidate. The
+	 * guess endpoint returns the resulting view, so the UI can move instantly
+	 * instead of waiting on a broadcast that may not be configured.
+	 */
+	const applyRound = useCallback(
+		(gameId: string, round: FeedEntry["round"]) =>
+			mutate(
+				(current) =>
+					current?.map((entry) =>
+						entry.gameId === gameId ? { ...entry, round } : entry,
+					),
+				{ revalidate: true },
+			),
+		[mutate],
+	);
+
+	return { entries: data ?? [], isLoading, refresh: mutate, applyRound };
 }

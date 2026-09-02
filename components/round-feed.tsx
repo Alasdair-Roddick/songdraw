@@ -10,7 +10,6 @@ import {
 } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -19,7 +18,38 @@ import { useFeed } from "@/hooks/use-feed";
 import type { FeedEntry, MemberView } from "@/lib/round";
 
 export function RoundFeed({ channels }: { channels: string[] }) {
-	const { entries, isLoading } = useFeed(channels);
+	const { entries, isLoading, applyRound } = useFeed(channels);
+
+	// Rounds that flipped to revealed while this tab was open get the full
+	// reveal animation; ones already revealed on first load just render.
+	const previousStates = useRef<Map<string, string>>(new Map());
+	const [justRevealed, setJustRevealed] = useState<Set<string>>(new Set());
+
+	useEffect(() => {
+		const seen = previousStates.current;
+		const fresh = new Set<string>();
+		for (const entry of entries) {
+			const before = seen.get(entry.gameId);
+			if (before && before !== "revealed" && entry.round.state === "revealed") {
+				fresh.add(entry.gameId);
+			}
+			seen.set(entry.gameId, entry.round.state);
+		}
+		if (fresh.size > 0) {
+			setJustRevealed((current) => new Set([...current, ...fresh]));
+			// Let it play, then fall back to the resting layout.
+			const timer = setTimeout(
+				() =>
+					setJustRevealed((current) => {
+						const next = new Set(current);
+						for (const id of fresh) next.delete(id);
+						return next;
+					}),
+				2600,
+			);
+			return () => clearTimeout(timer);
+		}
+	}, [entries]);
 
 	// One shared <audio> across the whole feed, so scrolling to a new record
 	// can't leave two previews overlapping.
@@ -119,6 +149,8 @@ export function RoundFeed({ channels }: { channels: string[] }) {
 								key={entry.gameId}
 								entry={entry}
 								index={index}
+								justRevealed={justRevealed.has(entry.gameId)}
+								onGuessed={applyRound}
 								playing={playingId === entry.gameId}
 								onTogglePreview={() =>
 									togglePreview(
@@ -219,12 +251,16 @@ function Shell({
 function Panel({
 	entry,
 	index,
+	justRevealed,
+	onGuessed,
 	playing,
 	onTogglePreview,
 	showHint,
 }: {
 	entry: FeedEntry;
 	index: number;
+	justRevealed: boolean;
+	onGuessed: (gameId: string, round: FeedEntry["round"]) => void;
 	playing: boolean;
 	onTogglePreview: () => void;
 	showHint: boolean;
@@ -262,10 +298,13 @@ function Panel({
 						gameId={entry.gameId}
 						members={entry.members}
 						viewerMemberId={entry.viewerMemberId}
+						onGuessed={onGuessed}
 					/>
 				)}
 				{round.state === "locked" && <LockedBody round={round} />}
-				{round.state === "revealed" && <RevealedBody round={round} />}
+				{round.state === "revealed" && (
+					<RevealedBody round={round} justRevealed={justRevealed} />
+				)}
 				{round.state === "submitter" && <SubmitterBody round={round} />}
 			</div>
 
@@ -286,18 +325,20 @@ function GuessBody({
 	gameId,
 	members,
 	viewerMemberId,
+	onGuessed,
 }: {
 	gameId: string;
 	members: MemberView[];
 	viewerMemberId: string;
+	onGuessed: (gameId: string, round: FeedEntry["round"]) => void;
 }) {
-	const router = useRouter();
 	const [picked, setPicked] = useState<string | null>(null);
 	const [busy, setBusy] = useState(false);
+	const [locked, setLocked] = useState(false);
 	const [error, setError] = useState<string | null>(null);
 
 	async function lockIn() {
-		if (!picked) return;
+		if (!picked || busy) return;
 		setBusy(true);
 		setError(null);
 
@@ -306,16 +347,21 @@ function GuessBody({
 			headers: { "Content-Type": "application/json" },
 			body: JSON.stringify({ memberId: picked }),
 		});
-		setBusy(false);
 
 		if (!res.ok) {
+			setBusy(false);
 			const body = await res.json().catch(() => null);
 			setError(body?.error ?? "Couldn't lock that in — try again.");
 			return;
 		}
-		// The broadcast from the server refreshes the feed for everyone,
-		// including us — no local mutate needed.
-		router.refresh();
+
+		// Apply the returned view straight to the feed cache. The server also
+		// broadcasts, but that only lands if Realtime is configured — relying on
+		// it left the picker on screen after a successful guess.
+		const view = (await res.json()) as FeedEntry["round"];
+		setLocked(true);
+		// Hold the confirmation just long enough to read before the panel swaps.
+		setTimeout(() => onGuessed(gameId, view), 700);
 	}
 
 	return (
@@ -369,15 +415,45 @@ function GuessBody({
 				</motion.p>
 			)}
 
-			<Button
-				type="button"
-				variant="brand"
-				className="h-12 rounded-full text-base"
-				disabled={!picked || busy}
-				onClick={lockIn}
-			>
-				{busy ? "Locking in…" : "Lock it in"}
-			</Button>
+			<motion.div animate={locked ? { scale: [1, 1.06, 1] } : {}}>
+				<Button
+					type="button"
+					variant="brand"
+					className="h-12 w-full rounded-full text-base"
+					disabled={!picked || busy}
+					onClick={lockIn}
+				>
+					<AnimatePresence mode="wait" initial={false}>
+						{locked ? (
+							<motion.span
+								key="done"
+								initial={{ opacity: 0, y: 6 }}
+								animate={{ opacity: 1, y: 0 }}
+								className="flex items-center gap-1.5"
+							>
+								<CheckIcon className="size-4" />
+								Locked in
+							</motion.span>
+						) : busy ? (
+							<motion.span
+								key="busy"
+								initial={{ opacity: 0 }}
+								animate={{ opacity: 1 }}
+							>
+								Locking in…
+							</motion.span>
+						) : (
+							<motion.span
+								key="idle"
+								initial={{ opacity: 0 }}
+								animate={{ opacity: 1 }}
+							>
+								Lock it in
+							</motion.span>
+						)}
+					</AnimatePresence>
+				</Button>
+			</motion.div>
 		</div>
 	);
 }
@@ -414,15 +490,27 @@ function LockedBody({
 
 function RevealedBody({
 	round,
+	justRevealed,
 }: {
 	round: Extract<FeedEntry["round"], { state: "revealed" }>;
+	justRevealed: boolean;
 }) {
 	return (
 		<motion.div
-			initial={{ opacity: 0, y: 8 }}
-			animate={{ opacity: 1, y: 0 }}
-			className="flex flex-col gap-3 border-2 border-foreground p-4"
+			// A round that flips while you're watching gets the full treatment;
+			// one that was already revealed on load just appears.
+			initial={
+				justRevealed ? { opacity: 0, scale: 0.94 } : { opacity: 0, y: 8 }
+			}
+			animate={{ opacity: 1, scale: 1, y: 0 }}
+			transition={
+				justRevealed
+					? { type: "spring", stiffness: 260, damping: 18 }
+					: { duration: 0.2 }
+			}
+			className="relative flex flex-col gap-3 border-2 border-foreground p-4"
 		>
+			{justRevealed && <RevealBurst />}
 			<div className="flex items-center gap-2">
 				<span
 					className={`grid size-6 place-items-center rounded-full ${
@@ -453,14 +541,25 @@ function RevealedBody({
 				)}
 			</div>
 			<div className="flex items-center gap-2.5">
-				<Avatar>
-					{round.answer.image && (
-						<AvatarImage src={round.answer.image} alt={round.answer.name} />
-					)}
-					<AvatarFallback>
-						{round.answer.name.charAt(0).toUpperCase()}
-					</AvatarFallback>
-				</Avatar>
+				<motion.div
+					initial={justRevealed ? { scale: 0, rotate: -25 } : false}
+					animate={{ scale: 1, rotate: 0 }}
+					transition={{
+						type: "spring",
+						stiffness: 300,
+						damping: 16,
+						delay: justRevealed ? 0.35 : 0,
+					}}
+				>
+					<Avatar>
+						{round.answer.image && (
+							<AvatarImage src={round.answer.image} alt={round.answer.name} />
+						)}
+						<AvatarFallback>
+							{round.answer.name.charAt(0).toUpperCase()}
+						</AvatarFallback>
+					</Avatar>
+				</motion.div>
 				<p className="text-sm">
 					It was <span className="font-bold">{round.answer.name}</span>
 					{!round.correct && round.guessed && (
@@ -478,6 +577,24 @@ function RevealedBody({
 				</p>
 			</div>
 		</motion.div>
+	);
+}
+
+/**
+ * Plays once when a round reveals live — the last guess landing, or 17:00
+ * passing while you're on the page. A brand wash sweeps the card and settles,
+ * so the answer arriving feels like an event rather than a re-render.
+ */
+function RevealBurst() {
+	return (
+		<motion.span
+			aria-hidden
+			initial={{ scaleY: 1 }}
+			animate={{ scaleY: 0 }}
+			transition={{ duration: 0.55, ease: [0.16, 1, 0.3, 1], delay: 0.1 }}
+			style={{ originY: 1 }}
+			className="pointer-events-none absolute inset-0 z-10 bg-brand motion-reduce:hidden"
+		/>
 	);
 }
 
