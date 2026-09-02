@@ -14,7 +14,10 @@ export class ITunesProvider implements MusicProvider {
 		const url = new URL("https://itunes.apple.com/search");
 		url.searchParams.set("term", query);
 		url.searchParams.set("media", "music");
-		url.searchParams.set("limit", "10");
+		// Without entity=song iTunes mixes in albums, music videos, and artist
+		// pages. A deeper song-only result set makes artist/title searches useful.
+		url.searchParams.set("entity", "song");
+		url.searchParams.set("limit", "25");
 
 		const response = await fetch(url.toString(), {
 			signal: AbortSignal.timeout(5000),

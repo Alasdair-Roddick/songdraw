@@ -10,7 +10,7 @@ import {
 	XIcon,
 } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -18,6 +18,8 @@ import type { Track } from "@/lib/music/types";
 import { cn } from "@/lib/utils";
 
 const DEBOUNCE_MS = 300;
+const RECENT_SEARCHES_KEY = "songdraw:recent-searches";
+const MAX_RECENT_SEARCHES = 6;
 
 const EQ_BARS = [
 	{ delay: "0s", duration: "0.9s" },
@@ -40,8 +42,33 @@ export function SongSearch({
 	const [playingId, setPlayingId] = useState<string | null>(null);
 	const [selectedTrack, setSelectedTrack] = useState<Track | null>(null);
 	const [progress, setProgress] = useState(0);
+	const [recentSearches, setRecentSearches] = useState<string[]>([]);
 	const audioRef = useRef<HTMLAudioElement>(null);
 	const inputRef = useRef<HTMLInputElement>(null);
+
+	useEffect(() => {
+		try {
+			const stored = window.localStorage.getItem(RECENT_SEARCHES_KEY);
+			if (stored) setRecentSearches(JSON.parse(stored) as string[]);
+		} catch {
+			// Search still works when storage is disabled or malformed.
+		}
+	}, []);
+
+	const rememberSearch = useCallback((term: string) => {
+		setRecentSearches((current) => {
+			const next = [term, ...current.filter((item) => item !== term)].slice(
+				0,
+				MAX_RECENT_SEARCHES,
+			);
+			try {
+				window.localStorage.setItem(RECENT_SEARCHES_KEY, JSON.stringify(next));
+			} catch {
+				// This convenience must not block a search.
+			}
+			return next;
+		});
+	}, []);
 
 	// Debounce: wait for typing to pause before firing a request.
 	useEffect(() => {
@@ -53,7 +80,7 @@ export function SongSearch({
 	}, [query]);
 
 	useEffect(() => {
-		if (!debouncedQuery) {
+		if (debouncedQuery.length < 2) {
 			setResults([]);
 			setError(null);
 			return;
@@ -70,7 +97,10 @@ export function SongSearch({
 				if (!res.ok) throw new Error("Search failed");
 				return res.json() as Promise<Track[]>;
 			})
-			.then(setResults)
+			.then((tracks) => {
+				setResults(tracks);
+				if (tracks.length > 0) rememberSearch(debouncedQuery);
+			})
 			.catch((err) => {
 				if (err instanceof Error && err.name !== "AbortError") {
 					setError("Couldn't search — try again.");
@@ -79,7 +109,7 @@ export function SongSearch({
 			.finally(() => setLoading(false));
 
 		return () => controller.abort();
-	}, [debouncedQuery]);
+	}, [debouncedQuery, rememberSearch]);
 
 	function togglePreview(track: Track) {
 		const audio = audioRef.current;
@@ -127,6 +157,7 @@ export function SongSearch({
 	const showSkeletons = loading && results.length === 0 && !!debouncedQuery;
 	const showEmpty =
 		!loading && debouncedQuery && results.length === 0 && !error;
+	const showRecent = !query && recentSearches.length > 0;
 
 	return (
 		// min-w-0: this renders inside a grid/flex parent (the dialog is a grid),
@@ -137,9 +168,15 @@ export function SongSearch({
 				<SearchIcon className="pointer-events-none absolute top-1/2 left-4 size-4 -translate-y-1/2 text-muted-foreground" />
 				<Input
 					ref={inputRef}
-					placeholder="Search for a song…"
+					placeholder="Song, artist, or album…"
 					value={query}
 					onChange={(e) => setQuery(e.target.value)}
+					onKeyDown={(e) => {
+						if (e.key === "Enter" && selectedTrack) {
+							e.preventDefault();
+							handleConfirm();
+						}
+					}}
 					autoFocus
 					className="h-12 rounded-full pr-11 pl-10 text-base"
 				/>
@@ -163,6 +200,44 @@ export function SongSearch({
 					)
 				)}
 			</div>
+			<p className="-mt-1 font-mono text-xs text-muted-foreground">
+				Try a title, artist, album, or a title + artist.
+			</p>
+			{showRecent && (
+				<div className="flex flex-col gap-2">
+					<div className="flex items-center justify-between gap-2">
+						<p className="font-mono text-xs font-semibold tracking-widest uppercase text-muted-foreground">
+							Recent searches
+						</p>
+						<Button
+							type="button"
+							variant="ghost"
+							size="sm"
+							className="h-auto px-1.5 py-1 text-xs text-muted-foreground"
+							onClick={() => {
+								setRecentSearches([]);
+								window.localStorage.removeItem(RECENT_SEARCHES_KEY);
+							}}
+						>
+							Clear
+						</Button>
+					</div>
+					<div className="flex flex-wrap gap-2">
+						{recentSearches.map((term) => (
+							<Button
+								key={term}
+								type="button"
+								variant="outline"
+								size="sm"
+								className="max-w-full rounded-full font-normal"
+								onClick={() => setQuery(term)}
+							>
+								<span className="truncate">{term}</span>
+							</Button>
+						))}
+					</div>
+				</div>
+			)}
 			{/** biome-ignore lint/a11y/useMediaCaption: 30s music preview, not spoken content */}
 			<audio
 				ref={audioRef}
@@ -218,10 +293,18 @@ export function SongSearch({
 					className="flex flex-col items-center gap-2 py-8 text-muted-foreground"
 				>
 					<SearchXIcon className="size-6" />
-					<p className="font-mono text-sm">No matches for “{debouncedQuery}”</p>
+					<p className="font-mono text-sm">No songs for “{debouncedQuery}”</p>
+					<p className="max-w-xs text-center text-sm">
+						Try the artist name, or combine the song title with the artist.
+					</p>
 				</motion.div>
 			)}
 
+			{results.length > 0 && (
+				<p className="font-mono text-xs text-muted-foreground">
+					{results.length} song{results.length === 1 ? "" : "s"} found
+				</p>
+			)}
 			<ScrollArea
 				className={cn(
 					"w-full min-w-0 max-h-[420px]",
