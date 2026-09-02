@@ -126,7 +126,7 @@ export function SongPool({
 								Bank a song
 							</Button>
 						</DialogTrigger>
-						<DialogContent className="rounded-none border-2 border-foreground sm:max-w-lg">
+						<DialogContent className="max-h-[85vh] overflow-y-auto rounded-none border-2 border-foreground sm:max-w-lg">
 							<DialogHeader>
 								<DialogTitle>Bank a song</DialogTitle>
 								<DialogDescription>
@@ -166,7 +166,7 @@ export function SongPool({
 								layout
 								exit={{ opacity: 0, scale: 0.9 }}
 								transition={{ type: "spring", stiffness: 400, damping: 22 }}
-								className="group relative flex flex-col border-2 border-foreground"
+								className="group relative flex min-w-0 flex-col border-2 border-foreground"
 							>
 								<div className="relative aspect-square border-b-2 border-foreground bg-muted">
 									{song.artworkUrl ? (

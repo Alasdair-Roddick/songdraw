@@ -129,7 +129,10 @@ export function SongSearch({
 		!loading && debouncedQuery && results.length === 0 && !error;
 
 	return (
-		<div className="flex flex-col gap-3">
+		// min-w-0: this renders inside a grid/flex parent (the dialog is a grid),
+		// where the default min-width:auto lets a long track title push the whole
+		// list wider than its container instead of truncating.
+		<div className="flex min-w-0 flex-col gap-3">
 			<div className="relative">
 				<SearchIcon className="pointer-events-none absolute top-1/2 left-4 size-4 -translate-y-1/2 text-muted-foreground" />
 				<Input
@@ -221,12 +224,12 @@ export function SongSearch({
 
 			<ScrollArea
 				className={cn(
-					"max-h-[420px]",
+					"w-full min-w-0 max-h-[420px]",
 					results.length > 5 &&
 						"[mask-image:linear-gradient(to_bottom,black_calc(100%-2.5rem),transparent)]",
 				)}
 			>
-				<div className="flex flex-col divide-y-2 divide-foreground border-2 border-foreground">
+				<div className="flex min-w-0 flex-col divide-y-2 divide-foreground border-2 border-foreground">
 					{results.map((track, i) => {
 						const isSelected =
 							selectedTrack?.providerTrackId === track.providerTrackId;

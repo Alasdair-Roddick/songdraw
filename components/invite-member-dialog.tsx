@@ -120,7 +120,9 @@ export function InviteMemberDialog({ gameId }: { gameId: string }) {
 				</div>
 
 				{query.trim().length >= 2 && (
-					<div className="border-2 border-foreground">
+					// min-w-0 so a long display name truncates rather than widening
+					// the list past the dialog — see the note in song-search.tsx.
+					<div className="min-w-0 border-2 border-foreground">
 						{searching && results.length === 0 ? (
 							<p className="p-4 text-center font-mono text-sm text-muted-foreground">
 								Searching…
