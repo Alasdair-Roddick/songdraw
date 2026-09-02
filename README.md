@@ -26,7 +26,10 @@ container for either — you need real credentials in `.env.local` to run at all
   notifications (see [docs/notifications.md](./docs/notifications.md))
 - **Cloudflare R2** — avatar uploads (see [docs/object-storage.md](./docs/object-storage.md))
 
-Apply schema changes with `bunx drizzle-kit push`.
+Generate a migration after changing the schema with `bunx drizzle-kit generate`,
+then apply it with `bunx drizzle-kit migrate`. See
+[docs/runbook.md](./docs/runbook.md) for the one-time baseline procedure for an
+existing database and the production deployment checklist.
 
 ### Simulating the daily loop
 
@@ -65,7 +68,7 @@ docker compose up -d
 Services:
 
 - `app` — the Next.js app, built via the root `Dockerfile` (bun for install/build, standalone Node output at runtime)
-- `migrate` — runs `drizzle-kit push` against Supabase before `app` starts; idempotent
+- `migrate` — applies committed Drizzle migrations against Supabase before `app` starts
 - `cron` — daily draw trigger (`docker/cron`), fires `POST /api/internal/draw` at midnight Australia/Adelaide
 
 Ports are remapped from their defaults where they'd collide with other services on the host — check `docker-compose.yml` for the current mapping.

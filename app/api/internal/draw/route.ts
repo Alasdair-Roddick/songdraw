@@ -11,9 +11,15 @@ import { gameDate } from "@/lib/round-date";
 // all converge on exactly one round per game per day.
 export async function POST(request: Request) {
 	const authHeader = request.headers.get("authorization");
-	const expected = `Bearer ${process.env.CRON_TOKEN}`;
+	const cronToken = process.env.CRON_TOKEN;
+	const expected = `Bearer ${cronToken}`;
 
-	if (!process.env.CRON_TOKEN || authHeader !== expected) {
+	if (
+		!cronToken ||
+		cronToken === "changeme" ||
+		cronToken.length < 32 ||
+		authHeader !== expected
+	) {
 		return NextResponse.json({ error: "unauthorized" }, { status: 401 });
 	}
 

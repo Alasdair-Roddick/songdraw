@@ -26,9 +26,8 @@ services:
       - traefik.http.routers.songdraw-app.entrypoints=web
       - traefik.http.services.songdraw-app.loadbalancer.server.port=3000
 
-  # Runs `drizzle-kit push` against Supabase before `app` starts. Idempotent —
-  # a no-op against an up-to-date schema, and fixes a fresh/reset DB
-  # automatically (no need to detect "empty" — pushing is safe either way).
+  # Applies committed Drizzle migrations before `app` starts. Unlike schema
+  # push, this never infers or forces a destructive production change.
   migrate:
     build:
       context: .
@@ -37,7 +36,7 @@ services:
     container_name: songdraw-migrate
     env_file:
       - .env
-    command: ["bunx", "drizzle-kit", "push", "--force"]
+    command: ["bunx", "drizzle-kit", "migrate"]
     networks:
       - internal
     restart: "no"
@@ -48,7 +47,7 @@ services:
     container_name: songdraw-cron
     environment:
       APP_URL: http://app:3000
-      CRON_TOKEN: ${CRON_TOKEN:-changeme}
+      CRON_TOKEN: ${CRON_TOKEN:?CRON_TOKEN must be set in .env}
     depends_on:
       - app
     networks:

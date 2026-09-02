@@ -14,6 +14,7 @@ import { toast } from "sonner";
 import useSWR from "swr";
 import { BankSongDialog } from "@/components/bank-song-dialog";
 import { Button } from "@/components/ui/button";
+import { useFreshnessRecovery } from "@/hooks/use-freshness-recovery";
 import { useRealtimeSignal } from "@/hooks/use-realtime";
 
 type BankSong = {
@@ -39,13 +40,17 @@ const fetcher = (url: string) =>
  */
 export function SongBank({ channels }: { channels: string[] }) {
 	const { data, mutate } = useSWR<BankResponse>("/api/bank", fetcher, {
-		refreshInterval: 60_000,
+		refreshInterval: 10_000,
 		revalidateOnFocus: true,
 		keepPreviousData: true,
 	});
 
 	// A guess anywhere can unlock banking, so listen to every game too.
 	useRealtimeSignal(channels, () => {
+		mutate();
+	});
+
+	useFreshnessRecovery(() => {
 		mutate();
 	});
 

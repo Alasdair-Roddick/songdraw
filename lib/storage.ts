@@ -12,12 +12,16 @@ import {
 // attaching a custom domain (or enabling the r2.dev subdomain) in the
 // Cloudflare dashboard. R2 has no PutBucketPolicy, so public access can't be
 // granted from code. See docs/object-storage.md.
-function getStorage() {
-	const bucket = process.env.S3_BUCKET!;
-	const publicUrl = process.env.S3_PUBLIC_URL!;
+function requiredStorageEnv(name: string) {
+	const value = process.env[name];
+	if (!value) throw new Error(`${name} is required for avatar storage`);
+	return value;
+}
 
+function storageConfig() {
+	const publicUrl = requiredStorageEnv("S3_PUBLIC_URL");
 	return {
-		bucket,
+		bucket: requiredStorageEnv("S3_BUCKET"),
 		publicUrl,
 		publicHost: new URL(publicUrl).host,
 		s3: new S3Client({
@@ -25,8 +29,8 @@ function getStorage() {
 			region: process.env.S3_REGION || "auto",
 			forcePathStyle: true,
 			credentials: {
-				accessKeyId: process.env.S3_ACCESS_KEY_ID!,
-				secretAccessKey: process.env.S3_SECRET_ACCESS_KEY!,
+				accessKeyId: requiredStorageEnv("S3_ACCESS_KEY_ID"),
+				secretAccessKey: requiredStorageEnv("S3_SECRET_ACCESS_KEY"),
 			},
 		}),
 	};
@@ -39,13 +43,13 @@ const EXTENSION_BY_TYPE: Record<string, string> = {
 };
 
 export async function uploadAvatar(userId: string, file: File) {
-	const { bucket, publicUrl, s3 } = getStorage();
+	const { bucket, publicUrl, s3 } = storageConfig();
 	const key = `avatars/${userId}/${crypto.randomUUID()}.${EXTENSION_BY_TYPE[file.type]}`;
 	const buffer = Buffer.from(await file.arrayBuffer());
 
 	await s3.send(
 		new PutObjectCommand({
-		Bucket: bucket,
+			Bucket: bucket,
 			Key: key,
 			Body: buffer,
 			ContentType: file.type,
@@ -63,7 +67,7 @@ export async function uploadAvatar(userId: string, file: File) {
 // avatar swap over a stale orphan isn't worth it.
 export async function deleteAvatarIfOwned(url: string | null | undefined) {
 	if (!url) return;
-	const { bucket, publicHost, s3 } = getStorage();
+	const { bucket, publicHost, s3 } = storageConfig();
 
 	let parsed: URL;
 	try {

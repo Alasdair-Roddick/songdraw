@@ -26,9 +26,14 @@ const globalForDb = globalThis as unknown as {
 	songdrawDb?: ReturnType<typeof postgres>;
 };
 
+// Next evaluates route modules while building the image, before Compose injects
+// runtime secrets. The container entrypoint validates DATABASE_URL before the
+// server starts; this harmless fallback keeps the build secret-free.
+const databaseUrl = process.env.DATABASE_URL ?? "postgres://localhost/songdraw";
+
 const client =
 	globalForDb.songdrawDb ??
-	postgres(process.env.DATABASE_URL!, {
+	postgres(databaseUrl, {
 		prepare: false,
 		max: 10,
 		idle_timeout: 20,

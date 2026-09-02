@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import useSWR from "swr";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
+import { useFreshnessRecovery } from "@/hooks/use-freshness-recovery";
 import { supabase } from "@/lib/supabase-browser";
 
 export type Invite = {
@@ -28,9 +29,9 @@ export function useInvites(channel: string | null) {
 	const [busyId, setBusyId] = useState<string | null>(null);
 
 	const { data, mutate } = useSWR<Invite[]>("/api/invites", fetcher, {
-		// Realtime is the fast path; this is the floor that keeps the bell
-		// correct when the socket is down, unconfigured, or the tab slept.
-		refreshInterval: 60_000,
+		// Realtime is the fast path; a visible mobile client still reconciles
+		// quickly when its socket was suspended in the background.
+		refreshInterval: 10_000,
 		revalidateOnFocus: true,
 	});
 
@@ -67,6 +68,11 @@ export function useInvites(channel: string | null) {
 		[mutate, router],
 	);
 
+	useFreshnessRecovery(() => {
+		mutate();
+		router.refresh();
+	});
+
 	// One subscription for the whole app. Beyond refreshing the bell it also
 	// re-renders the current page, so an inviter sitting on the game page sees
 	// a member appear the moment they accept.
@@ -80,7 +86,12 @@ export function useInvites(channel: string | null) {
 				mutate();
 				router.refresh();
 			})
-			.subscribe();
+			.subscribe((status) => {
+				if (status === "SUBSCRIBED") {
+					mutate();
+					router.refresh();
+				}
+			});
 
 		return () => {
 			client.removeChannel(subscription);
