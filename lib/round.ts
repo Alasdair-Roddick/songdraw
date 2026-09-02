@@ -5,7 +5,7 @@ import { game, gameMember } from "@/lib/db/game";
 import { guess, round } from "@/lib/db/round";
 import { user } from "@/lib/db/schema";
 import { trackAsset } from "@/lib/db/track-asset";
-import { REVEAL_HOUR } from "@/lib/game-rules";
+import { revealHour } from "@/lib/game-rules";
 import { gameDate, isPastRevealHour, revealInstant } from "@/lib/round-date";
 
 export type TrackView = {
@@ -43,6 +43,9 @@ export type RoundView =
 			state: "revealed";
 			roundId: string;
 			track: TrackView;
+			/** They never guessed — the window closed on them. Not the same as
+			 *  guessing wrong, and must not be rendered as a verdict. */
+			missed: boolean;
 			correct: boolean;
 			points: number;
 			answer: MemberView;
@@ -117,7 +120,7 @@ export async function roundViewFor(
 	const revealed =
 		today.status === "closed" ||
 		everyoneIn ||
-		isPastRevealHour(today.roundDate, REVEAL_HOUR);
+		isPastRevealHour(today.roundDate, revealHour());
 
 	// Your own song is up: you don't guess, you watch who you fooled. The
 	// submitter already knows the answer, so there's nothing to withhold.
@@ -170,7 +173,7 @@ export async function roundViewFor(
 			track: today.track,
 			guessed: picked,
 			waitingOn,
-			revealAt: revealInstant(today.roundDate, REVEAL_HOUR).toISOString(),
+			revealAt: revealInstant(today.roundDate, revealHour()).toISOString(),
 		};
 	}
 
@@ -201,6 +204,7 @@ export async function roundViewFor(
 		state: "revealed",
 		roundId: today.id,
 		track: today.track,
+		missed: !mine,
 		correct: mine?.isCorrect ?? false,
 		points: mine?.points ?? 0,
 		answer,

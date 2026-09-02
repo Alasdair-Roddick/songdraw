@@ -6,11 +6,11 @@ import { db } from "@/lib/db";
 import { bankSong } from "@/lib/db/bank";
 import { gameMember } from "@/lib/db/game";
 import { guess, round, statSnapshot } from "@/lib/db/round";
-import { CORRECT_POINTS, FOOL_POINTS } from "@/lib/game-rules";
+import { CORRECT_POINTS, FOOL_POINTS, revealHour } from "@/lib/game-rules";
 import { activeMembership } from "@/lib/games";
 import { notifyGame } from "@/lib/realtime";
 import { roundViewFor } from "@/lib/round";
-import { gameDate } from "@/lib/round-date";
+import { gameDate, isPastRevealHour } from "@/lib/round-date";
 
 export async function POST(
 	request: Request,
@@ -41,6 +41,7 @@ export async function POST(
 		.select({
 			id: round.id,
 			status: round.status,
+			roundDate: round.roundDate,
 			submitterUserId: bankSong.userId,
 		})
 		.from(round)
@@ -54,6 +55,14 @@ export async function POST(
 	if (today.status !== "open") {
 		return NextResponse.json(
 			{ error: "That round has closed." },
+			{ status: 409 },
+		);
+	}
+	// The answer is public from the reveal onward, so a guess after it would be
+	// free points. The UI hides the picker; this is what actually enforces it.
+	if (isPastRevealHour(today.roundDate, revealHour())) {
+		return NextResponse.json(
+			{ error: "Guessing closed for today — the answer's out." },
 			{ status: 409 },
 		);
 	}

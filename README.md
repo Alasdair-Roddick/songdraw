@@ -45,6 +45,12 @@ production and is still membership-gated):
 
 You need 3 members and at least one banked song before a draw can do anything.
 
+Rounds reveal at 17:00 Adelaide (or once everyone has guessed), and guessing
+closes at the same moment. So if you're testing in the evening every fresh
+round arrives already revealed and there's no picker. Set `DEV_REVEAL_HOUR=24`
+in `.env.local` to push the clock-based reveal out of the way — rounds then
+only reveal once everyone has actually guessed. Ignored in production.
+
 ## Full stack (Docker Compose)
 
 ```bash

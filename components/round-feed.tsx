@@ -3,6 +3,7 @@
 import {
 	CheckIcon,
 	ChevronDownIcon,
+	ClockIcon,
 	DoorOpenIcon,
 	SparklesIcon,
 	XIcon,
@@ -38,8 +39,34 @@ export function RoundFeed({ channels }: { channels: string[] }) {
 		setPlayingId(id);
 	}
 
-	// Stop audio when the panel playing it scrolls out of view.
+	// Which panel is on screen, for the progress rail.
 	const containerRef = useRef<HTMLDivElement>(null);
+	const [activeIndex, setActiveIndex] = useState(0);
+
+	useEffect(() => {
+		const container = containerRef.current;
+		if (!container) return;
+
+		const observer = new IntersectionObserver(
+			(observed) => {
+				for (const entry of observed) {
+					if (!entry.isIntersecting) continue;
+					const index = Number(
+						(entry.target as HTMLElement).dataset.index ?? "0",
+					);
+					setActiveIndex(index);
+				}
+			},
+			// Only the panel filling most of the viewport counts as current.
+			{ root: container, threshold: 0.6 },
+		);
+		for (const panel of container.querySelectorAll("[data-index]")) {
+			observer.observe(panel);
+		}
+		return () => observer.disconnect();
+	});
+
+	// Stop audio when the panel playing it scrolls out of view.
 	useEffect(() => {
 		const container = containerRef.current;
 		if (!container || !playingId) return;
@@ -91,6 +118,7 @@ export function RoundFeed({ channels }: { channels: string[] }) {
 							<Panel
 								key={entry.gameId}
 								entry={entry}
+								index={index}
 								playing={playingId === entry.gameId}
 								onTogglePreview={() =>
 									togglePreview(
@@ -103,19 +131,85 @@ export function RoundFeed({ channels }: { channels: string[] }) {
 								showHint={index === 0 && entries.length > 1}
 							/>
 						))}
-						<DonePanel remaining={unguessed} />
+						<DonePanel remaining={unguessed} index={entries.length} />
 					</>
 				)}
 			</div>
+
+			{entries.length > 0 && (
+				<ProgressRail
+					entries={entries}
+					activeIndex={activeIndex}
+					remaining={unguessed}
+				/>
+			)}
 		</>
 	);
 }
 
-function Shell({ id, children }: { id?: string; children: React.ReactNode }) {
+/**
+ * Fixed rail showing one mark per room plus the final panel, so you can see how
+ * many rounds are left without scrolling. A hollow mark still wants a guess; a
+ * filled one is done. Purely indicative — it doesn't scroll the feed, since on
+ * mobile the marks are far too small to be reliable tap targets.
+ */
+function ProgressRail({
+	entries,
+	activeIndex,
+	remaining,
+}: {
+	entries: FeedEntry[];
+	activeIndex: number;
+	remaining: number;
+}) {
+	return (
+		<div className="pointer-events-none fixed top-1/2 right-3 z-10 flex -translate-y-1/2 flex-col items-center gap-2">
+			{remaining > 0 && (
+				<span className="mb-1 font-mono text-[10px] font-bold tracking-widest tabular-nums text-muted-foreground [writing-mode:vertical-rl]">
+					{remaining} left
+				</span>
+			)}
+			{entries.map((entry, index) => {
+				const needsGuess = entry.round.state === "guessing";
+				const isActive = index === activeIndex;
+				return (
+					<motion.span
+						key={entry.gameId}
+						animate={{ scale: isActive ? 1.35 : 1 }}
+						transition={{ type: "spring", stiffness: 400, damping: 24 }}
+						className={`size-2 rounded-full border-2 border-foreground ${
+							needsGuess
+								? "bg-background"
+								: isActive
+									? "bg-brand"
+									: "bg-foreground"
+						}`}
+					/>
+				);
+			})}
+			<span
+				className={`h-3 w-0.5 ${
+					activeIndex === entries.length ? "bg-brand" : "bg-muted-foreground/40"
+				}`}
+			/>
+		</div>
+	);
+}
+
+function Shell({
+	id,
+	index,
+	children,
+}: {
+	id?: string;
+	index: number;
+	children: React.ReactNode;
+}) {
 	return (
 		<section
 			data-panel={id}
-			className="flex h-[100dvh] snap-start snap-always flex-col items-center justify-center gap-6 px-6 py-8"
+			data-index={index}
+			className="relative flex h-[100dvh] snap-start snap-always flex-col items-center justify-center gap-6 px-6 py-8"
 		>
 			{children}
 		</section>
@@ -124,11 +218,13 @@ function Shell({ id, children }: { id?: string; children: React.ReactNode }) {
 
 function Panel({
 	entry,
+	index,
 	playing,
 	onTogglePreview,
 	showHint,
 }: {
 	entry: FeedEntry;
+	index: number;
 	playing: boolean;
 	onTogglePreview: () => void;
 	showHint: boolean;
@@ -137,7 +233,7 @@ function Panel({
 	if (round.state === "none") return null;
 
 	return (
-		<Shell id={entry.gameId}>
+		<Shell id={entry.gameId} index={index}>
 			<Link
 				href={`/game/${entry.gameId}`}
 				className="font-mono text-xs font-semibold tracking-widest uppercase text-muted-foreground hover:text-foreground"
@@ -330,19 +426,25 @@ function RevealedBody({
 			<div className="flex items-center gap-2">
 				<span
 					className={`grid size-6 place-items-center rounded-full ${
-						round.correct
-							? "bg-brand text-brand-foreground"
-							: "bg-foreground text-background"
+						round.missed
+							? "bg-muted text-muted-foreground"
+							: round.correct
+								? "bg-brand text-brand-foreground"
+								: "bg-foreground text-background"
 					}`}
 				>
-					{round.correct ? (
+					{round.missed ? (
+						<ClockIcon className="size-3.5" />
+					) : round.correct ? (
 						<CheckIcon className="size-3.5" />
 					) : (
 						<XIcon className="size-3.5" />
 					)}
 				</span>
+				{/* Never showing a verdict to someone who didn't guess — missing the
+				    window isn't the same as being wrong. */}
 				<p className="text-lg font-black tracking-tight uppercase">
-					{round.correct ? "Got it" : "Nope"}
+					{round.missed ? "Missed it" : round.correct ? "Got it" : "Nope"}
 				</p>
 				{round.points > 0 && (
 					<span className="ml-auto font-mono text-sm font-bold tabular-nums">
@@ -365,6 +467,12 @@ function RevealedBody({
 						<span className="text-muted-foreground">
 							{" "}
 							— you said {round.guessed.name}
+						</span>
+					)}
+					{round.missed && (
+						<span className="text-muted-foreground">
+							{" "}
+							— you didn't guess in time
 						</span>
 					)}
 				</p>
@@ -436,10 +544,10 @@ function SubmitterBody({
 	);
 }
 
-function DonePanel({ remaining }: { remaining: number }) {
+function DonePanel({ remaining, index }: { remaining: number; index: number }) {
 	const done = remaining === 0;
 	return (
-		<Shell>
+		<Shell index={index}>
 			<motion.div
 				initial={{ scale: 0.85, opacity: 0 }}
 				whileInView={{ scale: 1, opacity: 1 }}
@@ -487,7 +595,7 @@ function DonePanel({ remaining }: { remaining: number }) {
 
 function EmptyPanel() {
 	return (
-		<Shell>
+		<Shell index={0}>
 			<div className="flex flex-col items-center gap-3 text-center">
 				<h2 className="text-3xl font-black tracking-tighter uppercase leading-[0.95]">
 					Nothing playing
