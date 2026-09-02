@@ -114,7 +114,7 @@ export default async function GamePage({
 						<h1 className="text-4xl font-black tracking-tighter uppercase leading-[0.95]">
 							{current.name}
 						</h1>
-						<div className="flex items-center gap-3">
+						<div className="flex w-full flex-wrap items-center gap-x-3 gap-y-2 sm:w-auto">
 							<GameRulesDialog />
 							<Link
 								href={`/game/${id}/leaderboard`}
