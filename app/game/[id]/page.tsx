@@ -79,7 +79,21 @@ export default async function GamePage({
 						<h1 className="text-4xl font-black tracking-tighter uppercase leading-[0.95]">
 							{current.name}
 						</h1>
-						<InviteMemberDialog gameId={id} />
+						<div className="flex items-center gap-3">
+							<Link
+								href={`/game/${id}/leaderboard`}
+								className="font-mono text-xs font-semibold tracking-widest uppercase text-muted-foreground hover:text-foreground"
+							>
+								Leaderboard
+							</Link>
+							<Link
+								href={`/game/${id}/history`}
+								className="font-mono text-xs font-semibold tracking-widest uppercase text-muted-foreground hover:text-foreground"
+							>
+								History
+							</Link>
+							<InviteMemberDialog gameId={id} />
+						</div>
 					</div>
 
 					{/* Three blocks, one per seat — the unlock rule as a picture. */}

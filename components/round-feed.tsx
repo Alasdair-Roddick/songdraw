@@ -11,6 +11,8 @@ import {
 import { AnimatePresence, motion } from "motion/react";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
+import { InlineSongBank } from "@/components/inline-song-bank";
+import { ShareResult } from "@/components/share-result";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Vinyl } from "@/components/vinyl";
@@ -576,6 +578,18 @@ function RevealedBody({
 					)}
 				</p>
 			</div>
+			<div className="flex items-center justify-between gap-3">
+				<ShareResult
+					roundNumber={round.roundNumber}
+					correct={round.correct}
+					missed={round.missed}
+					streak={round.streak}
+				/>
+				<span className="font-mono text-xs text-muted-foreground">
+					streak {round.streak}
+				</span>
+			</div>
+			<InlineSongBank />
 		</motion.div>
 	);
 }
