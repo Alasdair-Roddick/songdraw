@@ -1,12 +1,17 @@
-import { and, count, eq, ne } from "drizzle-orm";
+import { and, count, eq, lte, ne } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { bankSong } from "@/lib/db/bank";
 import { game, gameMember } from "@/lib/db/game";
-import { guess, round } from "@/lib/db/round";
+import { guess, round, statSnapshot } from "@/lib/db/round";
 import { user } from "@/lib/db/schema";
 import { trackAsset } from "@/lib/db/track-asset";
 import { revealHour } from "@/lib/game-rules";
-import { gameDate, isPastRevealHour, revealInstant } from "@/lib/round-date";
+import {
+	gameDate,
+	isPastRevealHour,
+	previousDate,
+	revealInstant,
+} from "@/lib/round-date";
 
 export type TrackView = {
 	title: string;
@@ -48,6 +53,10 @@ export type RoundView =
 			missed: boolean;
 			correct: boolean;
 			points: number;
+			/** Sequence number is safe after reveal and lets the share card identify
+			 * a day without exposing a track or a person's name. */
+			roundNumber: number;
+			streak: number;
 			answer: MemberView;
 			guessed: MemberView | null;
 	  };
@@ -200,6 +209,28 @@ export async function roundViewFor(
 		guessed = row ?? null;
 	}
 
+	const [[{ roundNumber }], [stats]] = await Promise.all([
+		db
+			.select({ roundNumber: count() })
+			.from(round)
+			.where(
+				and(eq(round.gameId, gameId), lte(round.roundDate, today.roundDate)),
+			),
+		db
+			.select({
+				currentStreak: statSnapshot.currentStreak,
+				lastPlayedDate: statSnapshot.lastPlayedDate,
+			})
+			.from(statSnapshot)
+			.where(
+				and(
+					eq(statSnapshot.gameId, gameId),
+					eq(statSnapshot.userId, viewerUserId),
+				),
+			)
+			.limit(1),
+	]);
+
 	return {
 		state: "revealed",
 		roundId: today.id,
@@ -207,6 +238,14 @@ export async function roundViewFor(
 		missed: !mine,
 		correct: mine?.isCorrect ?? false,
 		points: mine?.points ?? 0,
+		roundNumber,
+		// The snapshot settles at the nightly close, but the share grid is shown
+		// at reveal. Project today's played day forward so it reads correctly now.
+		streak: mine
+			? stats?.lastPlayedDate === previousDate(today.roundDate)
+				? stats.currentStreak + 1
+				: 1
+			: 0,
 		answer,
 		guessed,
 	};

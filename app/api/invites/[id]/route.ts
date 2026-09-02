@@ -72,6 +72,9 @@ export async function PATCH(
 	});
 
 	await notifyUser(invite.inviterId, "invite:answered");
+	// Refresh the invitee's other tabs too: this is the signal that makes a
+	// newly joined room appear without a manual reload.
+	await notifyUser(session.user.id, "game:joined");
 	await notifyGame(invite.gameId, "game:members");
 
 	const [joined] = await db

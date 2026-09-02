@@ -11,9 +11,12 @@ export async function GET(req: Request) {
 	}
 
 	const url = new URL(req.url);
-	const query = url.searchParams.get("query");
-	if (!query) {
+	const query = url.searchParams.get("query")?.trim();
+	if (!query || query.length < 2) {
 		return NextResponse.json({ error: "missing query" }, { status: 400 });
+	}
+	if (query.length > 120) {
+		return NextResponse.json({ error: "query is too long" }, { status: 400 });
 	}
 
 	const provider = itunesProvider;

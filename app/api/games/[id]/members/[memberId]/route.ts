@@ -72,7 +72,9 @@ export async function DELETE(
 		.set({ status: "left" })
 		.where(eq(gameMember.id, memberId));
 
-	if (!isSelf) await notifyUser(target.userId, "game:removed");
+	// A user channel is needed for the person who left too — their rooms page
+	// may no longer be subscribed to this game's channel after navigation.
+	await notifyUser(target.userId, isSelf ? "game:left" : "game:removed");
 	await notifyGame(gameId, "game:members");
 
 	return NextResponse.json({ status: isSelf ? "left" : "removed" });

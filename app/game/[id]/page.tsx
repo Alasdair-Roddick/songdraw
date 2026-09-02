@@ -1,4 +1,4 @@
-import { and, eq } from "drizzle-orm";
+import { and, count, eq } from "drizzle-orm";
 import { ArrowLeftIcon } from "lucide-react";
 import { headers } from "next/headers";
 import Link from "next/link";
@@ -6,14 +6,20 @@ import { notFound, redirect } from "next/navigation";
 import { AppHeader } from "@/components/app-header";
 import { DeleteGameDialog } from "@/components/delete-game-dialog";
 import { DevPanel } from "@/components/dev-panel";
+import { GameInsights } from "@/components/game-insights";
+import { GameRulesDialog } from "@/components/game-rules-dialog";
 import { InviteMemberDialog } from "@/components/invite-member-dialog";
 import { LiveRefresh } from "@/components/live-refresh";
 import { MemberList } from "@/components/member-list";
 import { PendingInvites } from "@/components/pending-invites";
+import { PoolHealth } from "@/components/pool-health";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { bankSong } from "@/lib/db/bank";
 import { game, gameInvite, gameMember } from "@/lib/db/game";
 import { user } from "@/lib/db/schema";
+import { isDevMode } from "@/lib/dev-mode";
+import { gameInsights } from "@/lib/game-insights";
 import { MIN_MEMBERS, SEATS } from "@/lib/game-rules";
 import { activeMembership } from "@/lib/games";
 import { gameChannel } from "@/lib/realtime";
@@ -57,8 +63,37 @@ export default async function GamePage({
 		.innerJoin(user, eq(gameInvite.inviteeId, user.id))
 		.where(and(eq(gameInvite.gameId, id), eq(gameInvite.status, "pending")));
 
+	const [poolRows, insights] = await Promise.all([
+		db
+			.select({ userId: gameMember.userId, bankedSongs: count(bankSong.id) })
+			.from(gameMember)
+			.leftJoin(
+				bankSong,
+				and(
+					eq(bankSong.userId, gameMember.userId),
+					eq(bankSong.status, "banked"),
+				),
+			)
+			.where(and(eq(gameMember.gameId, id), eq(gameMember.status, "active")))
+			.groupBy(gameMember.userId),
+		gameInsights(id),
+	]);
+
 	const isOwner = current.ownerId === session.user.id;
 	const needed = MIN_MEMBERS - members.length;
+	const totalSongs = poolRows.reduce(
+		(total, row) => total + row.bankedSongs,
+		0,
+	);
+	const membersWithoutSongs = poolRows.filter(
+		(row) => row.bankedSongs === 0,
+	).length;
+	const viewerSongs =
+		poolRows.find((row) => row.userId === session.user.id)?.bankedSongs ?? 0;
+	const fullyCoveredRounds =
+		poolRows.length > 0
+			? Math.min(...poolRows.map((row) => row.bankedSongs))
+			: 0;
 
 	return (
 		<div className="flex flex-1 flex-col">
@@ -79,7 +114,22 @@ export default async function GamePage({
 						<h1 className="text-4xl font-black tracking-tighter uppercase leading-[0.95]">
 							{current.name}
 						</h1>
-						<InviteMemberDialog gameId={id} />
+						<div className="flex items-center gap-3">
+							<GameRulesDialog />
+							<Link
+								href={`/game/${id}/leaderboard`}
+								className="font-mono text-xs font-semibold tracking-widest uppercase text-muted-foreground hover:text-foreground"
+							>
+								Leaderboard
+							</Link>
+							<Link
+								href={`/game/${id}/history`}
+								className="font-mono text-xs font-semibold tracking-widest uppercase text-muted-foreground hover:text-foreground"
+							>
+								History
+							</Link>
+							<InviteMemberDialog gameId={id} />
+						</div>
 					</div>
 
 					{/* Three blocks, one per seat — the unlock rule as a picture. */}
@@ -110,8 +160,15 @@ export default async function GamePage({
 					</div>
 				</div>
 
+				<PoolHealth
+					totalSongs={totalSongs}
+					membersWithoutSongs={membersWithoutSongs}
+					viewerSongs={viewerSongs}
+					fullyCoveredRounds={fullyCoveredRounds}
+				/>
+
 				{/* Never renders in production; the route it calls 404s there too. */}
-				{process.env.NODE_ENV !== "production" && <DevPanel gameId={id} />}
+				{isDevMode() && <DevPanel gameId={id} />}
 
 				<section className="flex flex-col gap-3">
 					<h2 className="font-mono text-xs font-semibold tracking-widest uppercase text-muted-foreground">
@@ -133,6 +190,8 @@ export default async function GamePage({
 						<PendingInvites invites={pending} />
 					</section>
 				)}
+
+				<GameInsights insights={insights} />
 
 				{isOwner && (
 					<section className="mt-auto flex flex-col gap-3">

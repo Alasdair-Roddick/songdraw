@@ -8,8 +8,8 @@ import { Button } from "@/components/ui/button";
 
 type Action = "draw" | "advance" | "reset";
 
-// Only ever rendered in dev — see the guard in app/game/[id]/page.tsx, and the
-// matching NODE_ENV check on the route itself.
+// Only rendered when DEV_MODE=true outside production — see the matching
+// server-side guard in app/game/[id]/page.tsx and the route itself.
 export function DevPanel({ gameId }: { gameId: string }) {
 	const router = useRouter();
 	const [busy, setBusy] = useState<Action | null>(null);

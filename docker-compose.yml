@@ -54,35 +54,6 @@ services:
       - internal
     restart: unless-stopped
 
-  # Notification service — song-pool-dry / song-draw-failed / song-new-member
-  # topics per GamePlan.md §3. Public so the ntfy mobile app can subscribe
-  # over the internet, not just from containers on this host.
-  ntfy:
-    image: binwiederhier/ntfy
-    container_name: songdraw-ntfy
-    command: serve
-    volumes:
-      - ntfy_cache:/var/cache/ntfy
-    networks:
-      - internal
-      - proxy
-    healthcheck:
-      test: ["CMD", "wget", "--spider", "-q", "http://127.0.0.1:80/v1/health"]
-      interval: 30s
-      timeout: 5s
-      retries: 3
-      start_period: 10s
-    restart: unless-stopped
-    labels:
-      - traefik.enable=true
-      - traefik.docker.network=proxy
-      - traefik.http.routers.songdraw-ntfy.rule=Host(`ntfy.roddickshare.space`)
-      - traefik.http.routers.songdraw-ntfy.entrypoints=web
-      - traefik.http.services.songdraw-ntfy.loadbalancer.server.port=80
-
-volumes:
-  ntfy_cache:
-
 networks:
   internal:
   proxy:

@@ -5,10 +5,12 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { AppHeader } from "@/components/app-header";
 import { CreateGameDialog } from "@/components/create-game-dialog";
+import { LiveRefresh } from "@/components/live-refresh";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { game, gameMember } from "@/lib/db/game";
 import { MIN_MEMBERS, SEATS } from "@/lib/game-rules";
+import { gameChannel, userChannel } from "@/lib/realtime";
 
 export default async function RoomsPage() {
 	const session = await auth.api.getSession({ headers: await headers() });
@@ -38,10 +40,18 @@ export default async function RoomsPage() {
 				.groupBy(gameMember.gameId)
 		: [];
 	const memberCount = new Map(counts.map((c) => [c.gameId, c.members]));
+	// The personal channel catches a newly accepted invite, removal, deletion,
+	// or a game made in another tab. The per-game channels keep roster counts
+	// and ownership labels current for every room already on this screen.
+	const channels = [
+		userChannel(session.user.id),
+		...games.map(({ game: current }) => gameChannel(current.id)),
+	];
 
 	return (
 		<div className="flex flex-1 flex-col">
 			<AppHeader />
+			<LiveRefresh channels={channels} />
 			<main className="mx-auto flex w-full max-w-4xl flex-1 flex-col gap-6 px-6 py-8">
 				<div className="flex flex-wrap items-end justify-between gap-3">
 					<div className="flex flex-col gap-1">

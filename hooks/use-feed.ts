@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect } from "react";
 import useSWR from "swr";
+import { useFreshnessRecovery } from "@/hooks/use-freshness-recovery";
 import { useRealtimeSignal } from "@/hooks/use-realtime";
 import type { FeedEntry } from "@/lib/round";
 
@@ -16,15 +17,19 @@ export function useFeed(channels: string[]) {
 		"/api/feed",
 		fetcher,
 		{
-			// Realtime does the heavy lifting; this is the floor for a dropped
-			// socket or a tab that slept through the reveal.
-			refreshInterval: 60_000,
+			// The feed is the daily play surface. Realtime is an accelerator; a
+			// visible client must become correct without it.
+			refreshInterval: 10_000,
 			revalidateOnFocus: true,
 			keepPreviousData: true,
 		},
 	);
 
 	useRealtimeSignal(channels, () => {
+		mutate();
+	});
+
+	useFreshnessRecovery(() => {
 		mutate();
 	});
 

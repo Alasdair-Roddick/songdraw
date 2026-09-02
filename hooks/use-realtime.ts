@@ -27,7 +27,12 @@ export function useRealtimeSignal(channels: string[], onSignal: () => void) {
 			client
 				.channel(name)
 				.on("broadcast", { event: "*" }, () => handler.current())
-				.subscribe(),
+				.subscribe((status) => {
+					// A mobile browser may drop the socket while it is suspended. A
+					// successful rejoin is a cue to reconcile, not proof that every
+					// broadcast was received while it was away.
+					if (status === "SUBSCRIBED") handler.current();
+				}),
 		);
 
 		return () => {

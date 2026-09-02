@@ -1,0 +1,39 @@
+# fly.toml app configuration file generated for songdraw on 2026-09-02T20:15:23+09:30
+#
+# See https://fly.io/docs/reference/configuration/ for information about how to use this file.
+#
+
+app = 'songdraw'
+primary_region = 'syd'
+
+[build]
+
+[env]
+  APP_URL = 'https://songdraw.fly.dev'
+
+[processes]
+  app = 'node server.js'
+  cron = 'node fly-cron.mjs'
+
+[http_service]
+  internal_port = 3000
+  force_https = true
+  auto_stop_machines = 'stop'
+  auto_start_machines = true
+  min_machines_running = 0
+  processes = ['app']
+
+[[vm]]
+  memory = '1gb'
+  cpus = 1
+  memory_mb = 1024
+
+[[vm]]
+  processes = ['cron']
+  memory = '256mb'
+  cpus = 1
+  memory_mb = 256
+
+[[restart]]
+  processes = ['cron']
+  policy = 'always'
