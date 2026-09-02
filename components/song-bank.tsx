@@ -204,7 +204,7 @@ export function SongBank({ channels }: { channels: string[] }) {
 										aria-label={`Remove ${song.title}`}
 										disabled={removing === song.id}
 										onClick={() => remove(song)}
-										className="absolute top-1 right-1 border-2 border-foreground bg-background opacity-0 transition-opacity group-hover:opacity-100 focus-visible:opacity-100"
+										className="absolute top-1 right-1 border-2 border-foreground bg-background opacity-100 transition-opacity md:opacity-0 md:group-hover:opacity-100 focus-visible:opacity-100"
 									>
 										<XIcon />
 									</Button>
