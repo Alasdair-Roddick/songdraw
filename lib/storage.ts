@@ -1,61 +1,30 @@
 import {
-	CreateBucketCommand,
 	DeleteObjectCommand,
-	PutBucketPolicyCommand,
 	PutObjectCommand,
 	S3Client,
 } from "@aws-sdk/client-s3";
 
-const AVATAR_BUCKET = "avatars";
+// S3-compatible object storage for profile pictures. Configured for Cloudflare
+// R2 (endpoint https://<accountid>.r2.cloudflarestorage.com, region "auto"),
+// but any S3-compatible provider works by swapping the env vars.
+//
+// The bucket must already exist and be publicly readable — on R2 that means
+// attaching a custom domain (or enabling the r2.dev subdomain) in the
+// Cloudflare dashboard. R2 has no PutBucketPolicy, so public access can't be
+// granted from code. See docs/object-storage.md.
+const BUCKET = process.env.S3_BUCKET!;
+const PUBLIC_URL = process.env.S3_PUBLIC_URL!;
+const PUBLIC_HOST = new URL(PUBLIC_URL).host;
 
 const s3 = new S3Client({
-	endpoint: process.env.RUSTFS_ENDPOINT,
-	region: "us-east-1",
+	endpoint: process.env.S3_ENDPOINT,
+	region: process.env.S3_REGION || "auto",
 	forcePathStyle: true,
 	credentials: {
-		accessKeyId: process.env.RUSTFS_ACCESS_KEY!,
-		secretAccessKey: process.env.RUSTFS_SECRET_KEY!,
+		accessKeyId: process.env.S3_ACCESS_KEY_ID!,
+		secretAccessKey: process.env.S3_SECRET_ACCESS_KEY!,
 	},
 });
-
-let bucketReady: Promise<void> | null = null;
-
-// Avatars are read directly by browsers (<img src>), so the bucket needs a
-// public-read policy — everything else in RustFS stays private.
-function ensureAvatarBucket() {
-	if (!bucketReady) {
-		bucketReady = (async () => {
-			try {
-				await s3.send(new CreateBucketCommand({ Bucket: AVATAR_BUCKET }));
-			} catch (err) {
-				const name = (err as { name?: string }).name;
-				if (
-					name !== "BucketAlreadyOwnedByYou" &&
-					name !== "BucketAlreadyExists"
-				) {
-					throw err;
-				}
-			}
-			await s3.send(
-				new PutBucketPolicyCommand({
-					Bucket: AVATAR_BUCKET,
-					Policy: JSON.stringify({
-						Version: "2012-10-17",
-						Statement: [
-							{
-								Effect: "Allow",
-								Principal: "*",
-								Action: "s3:GetObject",
-								Resource: `arn:aws:s3:::${AVATAR_BUCKET}/*`,
-							},
-						],
-					}),
-				}),
-			);
-		})();
-	}
-	return bucketReady;
-}
 
 const EXTENSION_BY_TYPE: Record<string, string> = {
 	"image/jpeg": "jpg",
@@ -64,29 +33,48 @@ const EXTENSION_BY_TYPE: Record<string, string> = {
 };
 
 export async function uploadAvatar(userId: string, file: File) {
-	await ensureAvatarBucket();
-
-	const key = `${userId}/${crypto.randomUUID()}.${EXTENSION_BY_TYPE[file.type]}`;
+	const key = `avatars/${userId}/${crypto.randomUUID()}.${EXTENSION_BY_TYPE[file.type]}`;
 	const buffer = Buffer.from(await file.arrayBuffer());
 
 	await s3.send(
 		new PutObjectCommand({
-			Bucket: AVATAR_BUCKET,
+			Bucket: BUCKET,
 			Key: key,
 			Body: buffer,
 			ContentType: file.type,
 		}),
 	);
 
-	return `${process.env.RUSTFS_PUBLIC_URL}/${AVATAR_BUCKET}/${key}`;
+	return `${PUBLIC_URL}/${key}`;
 }
 
-// Only deletes images we actually host — dicebear URLs (or anything else)
-// are left alone.
+// Deletes an avatar object we host. Matches on our storage host + the
+// `avatars/` key prefix rather than the full S3_PUBLIC_URL, so URLs stored
+// before S3_PUBLIC_URL last changed (e.g. gained/lost the bucket segment) are
+// still recognised and cleaned up. dicebear URLs (or anything else) are left
+// alone. Best-effort: a failed delete is logged, never thrown — losing an
+// avatar swap over a stale orphan isn't worth it.
 export async function deleteAvatarIfOwned(url: string | null | undefined) {
-	const prefix = `${process.env.RUSTFS_PUBLIC_URL}/${AVATAR_BUCKET}/`;
-	if (!url?.startsWith(prefix)) return;
+	if (!url) return;
 
-	const key = url.slice(prefix.length);
-	await s3.send(new DeleteObjectCommand({ Bucket: AVATAR_BUCKET, Key: key }));
+	let parsed: URL;
+	try {
+		parsed = new URL(url);
+	} catch {
+		return;
+	}
+
+	const marker = "/avatars/";
+	const idx = parsed.pathname.indexOf(marker);
+	if (parsed.host !== PUBLIC_HOST || idx === -1) return;
+
+	// Object key is always `avatars/<userId>/<uuid>.<ext>` regardless of any
+	// bucket segment the public host puts in front of it.
+	const key = parsed.pathname.slice(idx + 1);
+
+	try {
+		await s3.send(new DeleteObjectCommand({ Bucket: BUCKET, Key: key }));
+	} catch (err) {
+		console.error(`failed to delete old avatar ${key}`, err);
+	}
 }
