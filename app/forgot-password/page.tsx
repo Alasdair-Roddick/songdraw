@@ -51,7 +51,7 @@ export default function ForgotPasswordPage() {
 			<AuthShell>
 				<Card className="w-full rounded-none border-2 border-foreground shadow-[6px_6px_0_0_var(--color-foreground)] ring-0">
 					<CardHeader>
-						<CardTitle className="flex items-center gap-2 text-xl font-black tracking-tight uppercase">
+						<CardTitle className="flex items-center gap-2 text-xl font-display tracking-wide uppercase">
 							<MailCheckIcon className="size-5" /> Check your email
 						</CardTitle>
 					</CardHeader>
@@ -78,7 +78,7 @@ export default function ForgotPasswordPage() {
 		<AuthShell>
 			<Card className="w-full rounded-none border-2 border-foreground shadow-[6px_6px_0_0_var(--color-foreground)] ring-0">
 				<CardHeader>
-					<CardTitle className="text-xl font-black tracking-tight uppercase">
+					<CardTitle className="text-xl font-display tracking-wide uppercase">
 						Forgot password
 					</CardTitle>
 				</CardHeader>

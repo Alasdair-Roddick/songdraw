@@ -67,7 +67,7 @@ export function BankSongDialog({
 							<Music2Icon className="size-5" />
 						</span>
 						<div>
-							<DialogTitle className="text-xl font-black uppercase">
+							<DialogTitle className="text-xl font-display tracking-wide uppercase">
 								Bank a song
 							</DialogTitle>
 							<DialogDescription className="text-brand-foreground/75">

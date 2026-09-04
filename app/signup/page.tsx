@@ -138,7 +138,7 @@ export default function SignupPage() {
 							/>
 						))}
 					</div>
-					<CardTitle className="text-xl font-black tracking-tight uppercase">
+					<CardTitle className="text-xl font-display tracking-wide uppercase">
 						{STEP_TITLES[step]}
 					</CardTitle>
 				</CardHeader>
