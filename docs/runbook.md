@@ -38,8 +38,8 @@ Never run `drizzle-kit push --force` against production.
    values.
 2. Run `bun run check` and `bun run build` from a Bun-capable shell.
 3. Take a database backup, then run `docker compose up -d --build`.
-4. Confirm `docker compose ps` shows `migrate` exited successfully and `app`,
-   `cron`, and `ntfy` healthy/running.
+4. Confirm `docker compose ps` shows `migrate` exited successfully and `app`
+   and `cron` healthy/running.
 5. From the host, verify the app through HTTPS and trigger one authenticated
    draw against the internal network:
 
@@ -88,8 +88,8 @@ docker compose exec cron curl -fsS -X POST \
   http://app:3000/api/internal/draw
 ```
 
-Check `docker compose logs cron app --since 24h` and the `song-draw-failed`
-ntfy topic. A dry-pool result is expected behaviour, not an incident.
+Check `docker compose logs cron app --since 24h`. A dry-pool result is
+expected behaviour, not an incident.
 
 ## Force-close an old round
 

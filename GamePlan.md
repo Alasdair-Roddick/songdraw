@@ -88,7 +88,7 @@ DONE - **M0-4 CI + migrations** — lint/typecheck/test on PR; migration tool wi
 
 ### M1 — Identity (weekend 1–2, it's small now)
 DONE - **M1-1 Signup/login** — Better Auth email+password, ~1-year sessions refreshed on activity. *AC: sign up on a phone with email/password/name; session survives browser restart and re-opening weeks later.*
-DONE - **M1-2 Profile basics** — display name (captured at signup, editable after), generated avatar (dicebear-style) by default with optional upload to RustFS. *AC: name/avatar editable and shown everywhere a member appears; uploaded picture persists across restarts.*
+DONE - **M1-2 Profile basics** — display name (captured at signup, editable after), generated avatar (dicebear-style) by default with optional upload to Cloudflare R2. *AC: name/avatar editable and shown everywhere a member appears; uploaded picture persists across restarts.*
 DONE - **M1-3 Session middleware** — all game routes authed; internal cron endpoint token-protected. *AC: anonymous API call 401; cron endpoint rejects missing token.*
 
 ### M2 — Music search & TrackAsset (weekend 2)

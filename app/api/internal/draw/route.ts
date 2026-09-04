@@ -6,6 +6,15 @@ import { closeRoundsBefore, drawForGame } from "@/lib/draw";
 import { notifyGame } from "@/lib/realtime";
 import { gameDate } from "@/lib/round-date";
 
+// The values .env.example ships with. Rejecting them makes a half-configured
+// deploy fail loudly here rather than run on a guessable token — the same
+// guard app-entrypoint.sh applies at boot. Never put a live token in this set:
+// it is a denylist, so anything listed here can never authenticate.
+const PLACEHOLDER_TOKENS = new Set([
+	"changeme",
+	"replace-with-openssl-rand-hex-32",
+]);
+
 // Fired by the cron sidecar at 00:00 Australia/Adelaide. Idempotent by design
 // (unique game_id+round_date), so a double-fire, a retry, or a manual replay
 // all converge on exactly one round per game per day.
@@ -16,7 +25,7 @@ export async function POST(request: Request) {
 
 	if (
 		!cronToken ||
-		cronToken === "c705f21142808d6d6cea676a4c2742ca7122fe380a0334c7261d63ad90d47f51" ||
+		PLACEHOLDER_TOKENS.has(cronToken) ||
 		cronToken.length < 32 ||
 		authHeader !== expected
 	) {
