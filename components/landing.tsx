@@ -22,13 +22,6 @@ const PROMISES = [
 	{ label: "100% free, forever", description: "Not running a business here." },
 ];
 
-const TICKER = [
-	"Bank a song",
-	"Guess whose it is",
-	"See who you fooled",
-	"New round at midnight",
-];
-
 // Scroll-triggered reveals rather than load fade-ins: nothing is hidden from a
 // reader who never scrolls, and the hero is painted at full opacity on arrival.
 const reveal = {
@@ -124,26 +117,6 @@ export function Landing() {
 					</span>
 				</motion.div>
 			</section>
-
-			<div
-				aria-hidden
-				className="overflow-hidden border-y-2 border-foreground py-3"
-			>
-				<div className="flex w-max animate-[marquee_20s_linear_infinite] motion-reduce:animate-none">
-					{[0, 1].map((copy) => (
-						<div key={copy} className="flex shrink-0">
-							{TICKER.map((phrase) => (
-								<span
-									key={phrase}
-									className="pr-6 font-mono text-sm font-semibold tracking-widest uppercase"
-								>
-									{phrase} <span className="pl-4">✦</span>
-								</span>
-							))}
-						</div>
-					))}
-				</div>
-			</div>
 
 			<section className="mx-auto w-full max-w-4xl px-4 py-14 sm:px-6 sm:py-16">
 				<motion.div

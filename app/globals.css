@@ -149,9 +149,3 @@
 		transform: scaleY(1);
 	}
 }
-
-@keyframes marquee {
-	to {
-		transform: translateX(-50%);
-	}
-}

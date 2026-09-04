@@ -89,8 +89,9 @@ inline.
   once on arrival and everything below reveals on scroll with
   `viewport={{ once: true }}`, so nothing stays hidden from a reader who
   doesn't scroll. Ambient motion is CSS-only:
-  `equalize` (EQ bars) and `marquee` keyframes, always with
-  `motion-reduce:animate-none`.
+  the `equalize` keyframes (EQ bars), always with
+  `motion-reduce:animate-none`. No auto-scrolling tickers or carousels —
+  content that moves on its own can't be read at the reader's pace.
 - Client pages use `motion/react`; server pages get CSS animations only.
 
 ## Voice
