@@ -4,6 +4,7 @@ import { APIError } from "better-auth/api";
 import { and, ne, sql } from "drizzle-orm";
 import { db } from "./db";
 import { user } from "./db/schema";
+import { sendPasswordResetEmail } from "./email";
 
 // Names are compared case-insensitively against the `user_name_lower_unique`
 // index in lib/db/schema.ts. Checking here first turns what would be a raw
@@ -43,6 +44,18 @@ export const auth = betterAuth({
 	}),
 	emailAndPassword: {
 		enabled: true,
+		// GamePlan.md §3 deferred this until it became a real pain point — it
+		// has. Sessions are still ~1 year, so this is the rare path, not the
+		// daily one. Better Auth mints and expires the token itself; all we own
+		// is delivery. Errors thrown in here surface to the caller, so a broken
+		// Resend key fails loudly instead of pointing at an empty inbox.
+		sendResetPassword: async ({ user: recipient, url }) => {
+			await sendPasswordResetEmail({
+				name: recipient.name,
+				email: recipient.email,
+				url,
+			});
+		},
 	},
 	user: {
 		// No SMTP, so email changes apply immediately rather than going

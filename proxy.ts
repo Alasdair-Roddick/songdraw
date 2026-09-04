@@ -2,7 +2,7 @@ import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 
-const AUTH_PAGES = ["/login", "/signup"];
+const AUTH_PAGES = ["/login", "/signup", "/forgot-password"];
 const PROTECTED_PREFIXES = ["/home", "/search", "/game", "/rooms", "/bank"];
 const SESSION_COOKIES = [
 	"better-auth.session_token",
@@ -43,5 +43,6 @@ export const config = {
 		"/bank/:path*",
 		"/login",
 		"/signup",
+		"/forgot-password",
 	],
 };

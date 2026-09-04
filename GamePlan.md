@@ -90,6 +90,7 @@ DONE - **M0-4 CI + migrations** — lint/typecheck/test on PR; migration tool wi
 DONE - **M1-1 Signup/login** — Better Auth email+password, ~1-year sessions refreshed on activity. *AC: sign up on a phone with email/password/name; session survives browser restart and re-opening weeks later.*
 DONE - **M1-2 Profile basics** — display name (captured at signup, editable after), generated avatar (dicebear-style) by default with optional upload to Cloudflare R2. *AC: name/avatar editable and shown everywhere a member appears; uploaded picture persists across restarts.*
 DONE - **M1-3 Session middleware** — all game routes authed; internal cron endpoint token-protected. *AC: anonymous API call 401; cron endpoint rejects missing token.*
+DONE - **M1-4 Password reset** — Better Auth `sendResetPassword` over Resend; `/forgot-password` requests a link, `/reset-password` consumes the one-time token. Neutral response either way so the form can't be used to test which addresses have accounts. *AC: request a reset, follow the emailed link, log in with the new password.*
 
 ### M2 — Music search & TrackAsset (weekend 2)
 DONE - **M2-1 MusicProvider interface + iTunes impl** — `search(query)` normalised to internal Track shape; server-side proxy route (never call Apple from the browser). *AC: search "the presets" returns art + working 30s previews.*
@@ -98,7 +99,7 @@ DONE - **M2-3 TrackAsset caching** — selecting a search result upserts the ass
 DONEISH - **M2-4 Search UX** — debounced search box, result cards with preview-play button. *AC: find and pick a song in <15s on mobile.*
 
 ### M3 — Games, invites, join-with-a-song (weekend 3)
-- **M3-1 Create game** — owner becomes the sole member; no submission required at creation. *AC: game exists with just the owner as a member.*
+DONE - **M3-1 Create game** — owner becomes the sole member; no submission required at creation. *AC: game exists with just the owner as a member.*
 DONE - **M3-2 Invite notifications** — invite by display-name search; recipient accepts/declines straight from the toast (Supabase Realtime), with the bell as the catch-up surface for ones they missed. Inviter sees pending invites + who's joined on the game page, and can cancel. *AC: invite a user by name; they see it without a reload; accepting puts the game on both accounts.*
 DONE - **M3-3 Membership management** — leave a game; owner can remove members, hand ownership to another member, and delete the game behind a type-the-name confirmation. Removal is soft (`status: left`) so pooled songs retire per §2. *AC: only the owner sees remove/transfer; the owner can't be removed without transferring first; deleting requires the exact game name.*
 DONE - **M3-4 Duplicate rule** — per-user, not per-game: re-banking a track *you* already hold is rejected, but another member banking the same unplayed track is allowed (nobody's seen it, and it's a funny reveal). Tracks the game has already played are blocked until `REPLAY_AFTER_DAYS` (180) has passed. *AC: second submission of the same track by the same person fails gracefully; by a different person it succeeds.* See docs/pooling.md.
@@ -110,20 +111,21 @@ DONE - **M4-2 Guess API** — one guess per member per round (unique index), ser
 DONE - **M4-3 Submitter experience** — drawn member sees "your song is up" + live fooled-count instead of a guess UI; fool points accrue per wrong guess, pushed via Realtime. *AC: wrong guess by A immediately reflects in submitter's view and StatSnapshot.*
 DONE - **M4-4 Round lifecycle + streaks** — closed by the same cron before it draws, misses marked, streaks settled (submitter days count as played). *AC: three consecutive played days = streak 3; a miss resets; submitter day doesn't break it.* Streak cases covered by the draw test.
 DONE - **M4-5 Post-guess submission gate** — banking unlocks only after your guess (or automatically on your submitter day); before the first round ever drawn there's nothing to gate, which is how the pool seeds. *AC: submission endpoint 403s before guessing, 200s after.*
-- **M4-6 Ops runbook** — regenerate failed round, force-close, recompute stats; documented. *AC: /docs/runbook.md exists and each command tested once.*
+DONE - **M4-6 Ops runbook** — regenerate failed round, force-close, recompute stats; documented. *AC: /docs/runbook.md exists and each command tested once.*
 
 ### M5 — Play experience (weekend 5)
-- **M5-1 Daily play screen** — art + preview player + "whose song is this?" member picker; one tap to lock in. *AC: playable one-handed; preview plays on iOS Safari (test the autoplay rules).*
-- **M5-2 Reveal screen** — verdict, the answer, points, then the submit-for-tomorrow search box inline. *AC: guess → reveal → submitted, all one flow, no dead ends.*
-- **M5-3 Share grid** — spoiler-free emoji result + streak to clipboard. *AC: pasted into a group chat, looks right, spoils nothing.*
-- **M5-4 Leaderboard** — daily/weekly/all-time; columns for points, accuracy, fool points, streak. *AC: totals reconcile against Guess table.*
-- **M5-5 History** — past rounds read-only with answers and per-round guess breakdowns. *AC: yesterday browsable, accepts no input.*
+DONE - **M5-1 Daily play screen** — art + preview player + "whose song is this?" member picker; one tap to lock in. *AC: playable one-handed; preview plays on iOS Safari (test the autoplay rules).*
+DONE - **M5-2 Reveal screen** — verdict, the answer, points, then the submit-for-tomorrow search box inline. *AC: guess → reveal → submitted, all one flow, no dead ends.*
+DONE - **M5-3 Share grid** — spoiler-free emoji result + streak to clipboard. *AC: pasted into a group chat, looks right, spoils nothing.*
+DONE - **M5-4 Leaderboard** — daily/weekly/all-time; columns for points, accuracy, fool points, streak. *AC: totals reconcile against Guess table.*
+DONE - **M5-5 History** — past rounds read-only with answers and per-round guess breakdowns. *AC: yesterday browsable, accepts no input.*
 
 ### M6 — Polish & ongoing
-- **M6-2 Flavour stats** — most-fooled pairs, "X's songs get mistaken for Y", hardest song so far. *AC: shown on reveal/leaderboard without new schema.*
+- **M6-1 Daily ping** — "today's song is live", opt-in; special copy on your submitter day ("your song is playing 👀"). Web push now that ntfy is gone from the stack; the same channel should carry the dry-pool warning that alert used to. *AC: per-user opt-in respected.*
+DONE - **M6-2 Flavour stats** — most-fooled pairs, "X's songs get mistaken for Y", hardest song so far. *AC: shown on reveal/leaderboard without new schema.*
 - **M6-3 Second mode (validates the engine)** — e.g. weekly bonus round: guess the *year* of a played track. *AC: shipped without breaking Round/Guess schema.*
 - **M6-4 Ops hardening** — backup restore drill, Grafana panel (rounds, guesses/day, dry-pool events), dependency updates. *AC: restore performed once, documented.*
-- **M6-5 Multi-game QoL** — a user in several games gets one combined daily view. *AC: all pending rounds playable from one screen.*
+DONE - **M6-5 Multi-game QoL** — a user in several games gets one combined daily view. *AC: all pending rounds playable from one screen.*
 
 ---
 
@@ -150,7 +152,7 @@ DONE - **M4-5 Post-guess submission gate** — banking unlocks only after your g
 ## 8. Risks (now pleasantly boring)
 
 - **iTunes/Deezer preview coverage:** some tracks lack previews. Mitigation: metadata-only rounds still work; show "no preview" gracefully; provider fallback (M2-2).
-- **Forgotten passwords:** no email flow exists yet to recover a lost password. Mitigation: sessions are ~1 year so re-login is rare; add a password-reset email path if it becomes a real pain point.
+- **Forgotten passwords:** solved by M1-4 — reset links go out through Resend. Sessions are still ~1 year, so this stays a rare path rather than a daily one.
 - **Small groups:** 2-player games would be trivial to guess. Mitigation: no longer a live risk — submission (and therefore play) is locked entirely below 3 members, so there's no trivial-guess state, just a waiting one.
-- **Pool droughts:** if people miss days, tomorrow may have no song. Mitigation: rollover pools and the dry-pool alert. Scarcity is also motivation — "we need you back, the pool's empty" is a group-chat message that writes itself.
+- **Pool droughts:** if people miss days, tomorrow may have no song. Mitigation: rollover pools, and the game page's pool-health panel showing who still owes a song. (The old ntfy dry-pool alert went with the ntfy container — see M6-1.) Scarcity is also motivation — "we need you back, the pool's empty" is a group-chat message that writes itself.
 11. One song bank per person, shared across every room. Rooms are just "who's in this game"; the home screen is the game itself (a snap-scrolled feed, one room per screen); the bank is its own page.

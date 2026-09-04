@@ -100,7 +100,7 @@ export default async function GamePage({
 			{/* Roster, invites and pool all re-render when anyone changes them. */}
 			<LiveRefresh channels={[gameChannel(id)]} />
 			<AppHeader />
-			<main className="mx-auto flex w-full max-w-4xl flex-1 flex-col gap-10 px-6 py-8">
+			<main className="mx-auto flex w-full max-w-4xl flex-1 flex-col gap-8 px-4 py-8 sm:gap-10 sm:px-6">
 				<div className="flex flex-col gap-5">
 					<Link
 						href="/rooms"
@@ -110,27 +110,38 @@ export default async function GamePage({
 						All rooms
 					</Link>
 
-					<div className="flex flex-wrap items-center justify-between gap-3">
-						<h1 className="text-4xl font-black tracking-tighter uppercase leading-[0.95]">
+					<div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+						{/* A long room name shouldn't force a 4xl line to overflow a
+						    375px screen, so the display size steps down on mobile. */}
+						<h1 className="text-3xl font-black tracking-tighter uppercase leading-[0.95] break-words sm:text-4xl">
 							{current.name}
 						</h1>
-						<div className="flex w-full flex-wrap items-center gap-x-3 gap-y-2 sm:w-auto">
+						<div className="flex flex-wrap items-center gap-2">
 							<GameRulesDialog />
-							<Link
-								href={`/game/${id}/leaderboard`}
-								className="font-mono text-xs font-semibold tracking-widest uppercase text-muted-foreground hover:text-foreground"
-							>
-								Leaderboard
-							</Link>
-							<Link
-								href={`/game/${id}/history`}
-								className="font-mono text-xs font-semibold tracking-widest uppercase text-muted-foreground hover:text-foreground"
-							>
-								History
-							</Link>
 							<InviteMemberDialog gameId={id} />
 						</div>
 					</div>
+
+					{/* Leaderboard and History were 16px-tall text links wedged in
+					    beside the title. As a segmented bar they're full-width,
+					    44px tap targets on a phone and shrink to fit on desktop. */}
+					<nav
+						className="flex w-full border-2 border-foreground sm:w-fit"
+						aria-label="Game views"
+					>
+						<Link
+							href={`/game/${id}/leaderboard`}
+							className="flex-1 border-r-2 border-foreground px-4 py-3 text-center font-mono text-xs font-semibold tracking-widest uppercase hover:bg-muted sm:flex-none sm:py-2"
+						>
+							Leaderboard
+						</Link>
+						<Link
+							href={`/game/${id}/history`}
+							className="flex-1 px-4 py-3 text-center font-mono text-xs font-semibold tracking-widest uppercase hover:bg-muted sm:flex-none sm:py-2"
+						>
+							History
+						</Link>
+					</nav>
 
 					{/* Three blocks, one per seat — the unlock rule as a picture. */}
 					<div className="flex flex-col gap-2.5 border-2 border-foreground p-4">

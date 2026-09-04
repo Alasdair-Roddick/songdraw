@@ -11,7 +11,7 @@ export default async function SearchPage() {
 	}
 
 	return (
-		<div className="mx-auto flex w-full max-w-md flex-1 flex-col gap-4 px-6 py-10">
+		<div className="mx-auto flex w-full max-w-md flex-1 flex-col gap-4 px-4 py-10 sm:px-6">
 			<h1 className="text-2xl font-black tracking-tight uppercase">
 				Search for a song
 			</h1>
