@@ -2,6 +2,7 @@
 
 import {
 	CheckIcon,
+	ChevronDownIcon,
 	ClockIcon,
 	DoorOpenIcon,
 	SparklesIcon,
@@ -73,8 +74,34 @@ export function RoundFeed({ channels }: { channels: string[] }) {
 	const audioRef = useRef<HTMLAudioElement>(null);
 	const [playingId, setPlayingId] = useState<string | null>(null);
 
-	// Scopes the audio observer to this feed's cards.
 	const containerRef = useRef<HTMLDivElement>(null);
+	const [activeIndex, setActiveIndex] = useState(0);
+
+	// Which panel is on screen, for the progress rail. Not a ratio test: an
+	// intersection ratio is measured against the *panel*, so a room taller than
+	// the viewport can never reach a 0.6 threshold and the rail would freeze on
+	// it. Collapsing the root to a centre line instead means whichever panel
+	// crosses the middle is current, at any height.
+	useEffect(() => {
+		const container = containerRef.current;
+		if (!container) return;
+
+		const observer = new IntersectionObserver(
+			(observed) => {
+				for (const entry of observed) {
+					if (!entry.isIntersecting) continue;
+					setActiveIndex(
+						Number((entry.target as HTMLElement).dataset.index ?? "0"),
+					);
+				}
+			},
+			{ root: container, rootMargin: "-50% 0px -50% 0px", threshold: 0 },
+		);
+		for (const panel of container.querySelectorAll("[data-index]")) {
+			observer.observe(panel);
+		}
+		return () => observer.disconnect();
+	});
 
 	function togglePreview(id: string, url: string | null) {
 		const audio = audioRef.current;
@@ -105,8 +132,7 @@ export function RoundFeed({ channels }: { channels: string[] }) {
 					}
 				}
 			},
-			// Document scroll now, so no `root` — the viewport is the root.
-			{ threshold: 0.4 },
+			{ root: containerRef.current, threshold: 0.4 },
 		);
 		const container = containerRef.current;
 		if (!container) return;
@@ -122,10 +148,9 @@ export function RoundFeed({ channels }: { channels: string[] }) {
 		(entry) => entry.round.state === "guessing",
 	).length;
 
-	// Anything still wanting a guess floats up. With the full-screen snap gone
-	// there is no "scroll to find the one you owe" — the actionable rooms are
-	// simply at the top. Ties keep the server's order so cards don't reshuffle
-	// under a thumb mid-scroll.
+	// Rooms still wanting a guess come first, so the ones you owe are the
+	// screens you hit before any you've already played. Ties keep the server's
+	// order so panels don't reshuffle under a thumb mid-scroll.
 	const ordered = [...entries].sort((a, b) => {
 		const aOwed = a.round.state === "guessing" ? 0 : 1;
 		const bOwed = b.round.state === "guessing" ? 0 : 1;
@@ -141,15 +166,22 @@ export function RoundFeed({ channels }: { channels: string[] }) {
 				className="hidden"
 			/>
 
+			{/*
+			 * One room per screen. `proximity` rather than `mandatory` on purpose:
+			 * a room taller than the viewport (long member list, reveal open) has
+			 * no snap point in its middle, and under `mandatory` letting go
+			 * mid-room yanks you back to its top — the content below becomes
+			 * unreachable. `proximity` snaps crisply at the edges and leaves you
+			 * alone while you're reading through a tall one.
+			 */}
 			<div
 				ref={containerRef}
-				className="mx-auto flex w-full max-w-xl flex-col gap-4 px-4 py-6 sm:px-6"
+				className="h-[100dvh] snap-y snap-proximity overflow-y-scroll overscroll-y-contain [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
 			>
 				{entries.length === 0 ? (
 					<EmptyPanel />
 				) : (
 					<>
-						<FeedHeading remaining={unguessed} total={entries.length} />
 						{ordered.map((entry, index) => (
 							<Panel
 								key={entry.gameId}
@@ -166,34 +198,70 @@ export function RoundFeed({ channels }: { channels: string[] }) {
 											: entry.round.track.previewUrl,
 									)
 								}
+								showHint={index === 0 && entries.length > 1}
 							/>
 						))}
 						<DonePanel remaining={unguessed} index={entries.length} />
 					</>
 				)}
 			</div>
+
+			{entries.length > 0 && (
+				<ProgressRail
+					entries={entries}
+					activeIndex={activeIndex}
+					remaining={unguessed}
+				/>
+			)}
 		</>
 	);
 }
 
 /**
- * Replaces the old fixed progress rail: with every card in one normal scroll
- * there is nothing to indicate position, but "how many do I still owe" was the
- * genuinely useful half of that rail.
+ * Fixed rail showing one mark per room plus the final panel, so you can see how
+ * many rounds are left without scrolling. A hollow mark still wants a guess; a
+ * filled one is done. Purely indicative — it doesn't scroll the feed, since on
+ * mobile the marks are far too small to be reliable tap targets.
  */
-function FeedHeading({
+function ProgressRail({
+	entries,
+	activeIndex,
 	remaining,
-	total,
 }: {
+	entries: FeedEntry[];
+	activeIndex: number;
 	remaining: number;
-	total: number;
 }) {
 	return (
-		<div className="flex items-baseline justify-between gap-3 pt-1">
-			<h1 className="text-2xl font-display tracking-wide uppercase">Today</h1>
-			<span className="font-mono text-xs font-semibold tracking-widest uppercase tabular-nums text-muted-foreground">
-				{remaining > 0 ? `${remaining} to guess` : `${total} done`}
-			</span>
+		<div className="pointer-events-none fixed top-1/2 right-3 z-10 flex -translate-y-1/2 flex-col items-center gap-2">
+			{remaining > 0 && (
+				<span className="mb-1 font-mono text-[10px] font-bold tracking-widest tabular-nums text-muted-foreground [writing-mode:vertical-rl]">
+					{remaining} left
+				</span>
+			)}
+			{entries.map((entry, index) => {
+				const needsGuess = entry.round.state === "guessing";
+				const isActive = index === activeIndex;
+				return (
+					<motion.span
+						key={entry.gameId}
+						animate={{ scale: isActive ? 1.35 : 1 }}
+						transition={{ type: "spring", stiffness: 400, damping: 24 }}
+						className={`size-2 rounded-full border-2 border-foreground ${
+							needsGuess
+								? "bg-background"
+								: isActive
+									? "bg-brand"
+									: "bg-foreground"
+						}`}
+					/>
+				);
+			})}
+			<span
+				className={`h-3 w-0.5 ${
+					activeIndex === entries.length ? "bg-brand" : "bg-muted-foreground/40"
+				}`}
+			/>
 		</div>
 	);
 }
@@ -202,27 +270,30 @@ function Shell({
 	id,
 	index,
 	children,
+	hint,
 }: {
 	id?: string;
 	index: number;
 	children: React.ReactNode;
+	hint?: React.ReactNode;
 }) {
 	return (
-		<motion.section
+		// `min-h`, not `h`. Measured in a headless browser at 390x844: with a
+		// fixed `h-[100dvh]` a room needing ~1264px stayed pinned at 757px and
+		// its last block fell outside the section with no way to reach it. With
+		// `min-h` the section grows to 1280px and nothing is cut off. The inner
+		// `m-auto` just centres the common short room — once `min-h` lets the
+		// section grow there is no negative free space for it to resolve.
+		<section
 			data-panel={id}
 			data-index={index}
-			initial={{ opacity: 0, y: 12 }}
-			animate={{ opacity: 1, y: 0 }}
-			transition={{
-				delay: Math.min(index, 4) * 0.06,
-				type: "spring",
-				stiffness: 300,
-				damping: 26,
-			}}
-			className="relative flex flex-col items-center gap-6 border-2 border-foreground bg-background px-4 py-8 shadow-[4px_4px_0_0_var(--color-foreground)] sm:px-6"
+			className="relative flex min-h-[100dvh] snap-start flex-col px-4 py-8 sm:px-6"
 		>
-			{children}
-		</motion.section>
+			<div className="m-auto flex w-full max-w-md flex-col items-center gap-6">
+				{children}
+			</div>
+			{hint}
+		</section>
 	);
 }
 
@@ -233,6 +304,7 @@ function Panel({
 	onGuessed,
 	playing,
 	onTogglePreview,
+	showHint,
 }: {
 	entry: FeedEntry;
 	index: number;
@@ -240,12 +312,27 @@ function Panel({
 	onGuessed: (gameId: string, round: FeedEntry["round"]) => void;
 	playing: boolean;
 	onTogglePreview: () => void;
+	showHint: boolean;
 }) {
 	const round = entry.round;
 	if (round.state === "none") return null;
 
 	return (
-		<Shell id={entry.gameId} index={index}>
+		<Shell
+			id={entry.gameId}
+			index={index}
+			hint={
+				showHint ? (
+					<motion.div
+						animate={{ y: [0, 5, 0] }}
+						transition={{ duration: 1.6, repeat: Number.POSITIVE_INFINITY }}
+						className="absolute inset-x-0 bottom-4 flex justify-center text-muted-foreground motion-reduce:hidden"
+					>
+						<ChevronDownIcon className="size-5" />
+					</motion.div>
+				) : null
+			}
+		>
 			<Link
 				href={`/game/${entry.gameId}`}
 				className="font-mono text-xs font-semibold tracking-widest uppercase text-muted-foreground hover:text-foreground"
