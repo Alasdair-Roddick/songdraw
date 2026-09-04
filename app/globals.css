@@ -7,8 +7,11 @@
 @theme inline {
 	--font-heading: var(--font-sans);
 	--font-sans: var(--font-geist-sans);
-	/* Display only — hero and page titles. `font-heading` stays on the sans so
-	   card and dialog titles keep their lowercase. */
+	/* Display face — hero and page titles only. `font-heading` stays on the
+	   sans so card and dialog titles keep their lowercase.
+	   Note: adding a key here needs a dev-server restart. Tailwind caches the
+	   resolved theme, so a new `--font-*` silently emits no utility until then
+	   and the class sits in the HTML doing nothing. */
 	--font-display: var(--font-bebas);
 	--color-brand: var(--brand);
 	--color-brand-foreground: var(--brand-foreground);
