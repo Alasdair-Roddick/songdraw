@@ -1,7 +1,7 @@
 import { headers } from "next/headers";
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
-import { itunesProvider } from "@/lib/music/itunes";
+import { searchTracks } from "@/lib/music/provider";
 
 export async function GET(req: Request) {
 	const requestHeaders = await headers();
@@ -19,15 +19,13 @@ export async function GET(req: Request) {
 		return NextResponse.json({ error: "query is too long" }, { status: 400 });
 	}
 
-	const provider = itunesProvider;
 	try {
-		const results = await provider.search(query);
-		return NextResponse.json(results);
+		// Provider choice and fallback live in lib/music/provider.ts, so this
+		// route stays the same whichever service actually answers.
+		const { tracks } = await searchTracks(query);
+		return NextResponse.json(tracks);
 	} catch (error) {
-		console.error("Error searching iTunes:", error);
-		return NextResponse.json(
-			{ error: "failed to search iTunes" },
-			{ status: 500 },
-		);
+		console.error("music search failed on every provider", error);
+		return NextResponse.json({ error: "failed to search" }, { status: 500 });
 	}
 }

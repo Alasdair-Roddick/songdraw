@@ -4,6 +4,6 @@ export const alt = "SongDraw — a daily music game for friends";
 export const size = socialImageSize;
 export const contentType = "image/png";
 
-export default function TwitterImage() {
+export default async function TwitterImage() {
 	return createSocialImage();
 }
