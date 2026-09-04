@@ -16,7 +16,7 @@ export async function POST(request: Request) {
 
 	if (
 		!cronToken ||
-		cronToken === "changeme" ||
+		cronToken === "c705f21142808d6d6cea676a4c2742ca7122fe380a0334c7261d63ad90d47f51" ||
 		cronToken.length < 32 ||
 		authHeader !== expected
 	) {

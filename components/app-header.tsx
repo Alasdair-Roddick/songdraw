@@ -11,7 +11,7 @@ export async function AppHeader() {
 	if (!session) return null;
 
 	// Derived server-side and handed down: the channel name is the only thing
-	// standing between a browser with the anon key and someone else's feed.
+	// standing between a browser with the publishable key and someone else's feed.
 	const channel = userChannel(session.user.id);
 
 	return (

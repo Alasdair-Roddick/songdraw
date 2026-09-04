@@ -12,7 +12,7 @@ from the same `useInvites` hook and share one `respond()`, so they can't drift.
 
 Supabase Realtime scopes subscriptions with RLS and `auth.uid()`, which comes
 from a **Supabase Auth** JWT. We authenticate with **Better Auth**, so the
-browser holds no such token — only the public anon key. A client-side filter
+browser holds no such token — only the public publishable key. A client-side filter
 like `invitee_id=eq.<myId>` is therefore unenforced: anyone could subscribe to
 anyone's invites.
 
@@ -48,7 +48,7 @@ Set these from Supabase → Project Settings → API:
 | Var | Value |
 |---|---|
 | `NEXT_PUBLIC_SUPABASE_URL` | `https://<ref>.supabase.co` |
-| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | the anon/publishable key |
+| `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | the publishable key (`sb_publishable_…`) — Project Settings → API Keys |
 | `REALTIME_CHANNEL_SECRET` | any long random string — `openssl rand -hex 32` |
 
 Rotating `REALTIME_CHANNEL_SECRET` re-keys every channel. Clients pick up their

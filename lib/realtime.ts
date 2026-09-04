@@ -1,7 +1,8 @@
 import { createHmac } from "node:crypto";
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
-const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+const SUPABASE_PUBLISHABLE_KEY =
+	process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
 const CHANNEL_SECRET = process.env.REALTIME_CHANNEL_SECRET;
 
 // Supabase Realtime is a wake-up signal here, never a data source.
@@ -46,15 +47,15 @@ export function gameChannel(gameId: string) {
 // down or unconfigured the client's SWR poll/refocus still picks the change up,
 // so a failed ping must never fail the request that triggered it.
 async function broadcast(topic: string, event: string) {
-	if (!SUPABASE_URL || !SUPABASE_ANON_KEY || !CHANNEL_SECRET) return;
+	if (!SUPABASE_URL || !SUPABASE_PUBLISHABLE_KEY || !CHANNEL_SECRET) return;
 
 	try {
 		await fetch(`${SUPABASE_URL}/realtime/v1/api/broadcast`, {
 			method: "POST",
 			headers: {
 				"Content-Type": "application/json",
-				apikey: SUPABASE_ANON_KEY,
-				Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
+				apikey: SUPABASE_PUBLISHABLE_KEY,
+				Authorization: `Bearer ${SUPABASE_PUBLISHABLE_KEY}`,
 			},
 			body: JSON.stringify({ messages: [{ topic, event, payload: {} }] }),
 		});

@@ -22,7 +22,7 @@ Both managed dependencies are used in every environment, so there is no local
 container for either — you need real credentials in `.env.local` to run at all:
 
 - **Supabase** — `DATABASE_URL` for Postgres, plus `NEXT_PUBLIC_SUPABASE_URL` /
-  `NEXT_PUBLIC_SUPABASE_ANON_KEY` / `REALTIME_CHANNEL_SECRET` for invite
+  `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` / `REALTIME_CHANNEL_SECRET` for invite
   notifications (see [docs/notifications.md](./docs/notifications.md))
 - **Cloudflare R2** — avatar uploads (see [docs/object-storage.md](./docs/object-storage.md))
 
