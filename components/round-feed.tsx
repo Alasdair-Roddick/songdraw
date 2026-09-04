@@ -2,7 +2,6 @@
 
 import {
 	CheckIcon,
-	ChevronDownIcon,
 	ClockIcon,
 	DoorOpenIcon,
 	SparklesIcon,
@@ -74,6 +73,9 @@ export function RoundFeed({ channels }: { channels: string[] }) {
 	const audioRef = useRef<HTMLAudioElement>(null);
 	const [playingId, setPlayingId] = useState<string | null>(null);
 
+	// Scopes the audio observer to this feed's cards.
+	const containerRef = useRef<HTMLDivElement>(null);
+
 	function togglePreview(id: string, url: string | null) {
 		const audio = audioRef.current;
 		if (!audio || !url) return;
@@ -87,37 +89,9 @@ export function RoundFeed({ channels }: { channels: string[] }) {
 		setPlayingId(id);
 	}
 
-	// Which panel is on screen, for the progress rail.
-	const containerRef = useRef<HTMLDivElement>(null);
-	const [activeIndex, setActiveIndex] = useState(0);
-
-	useEffect(() => {
-		const container = containerRef.current;
-		if (!container) return;
-
-		const observer = new IntersectionObserver(
-			(observed) => {
-				for (const entry of observed) {
-					if (!entry.isIntersecting) continue;
-					const index = Number(
-						(entry.target as HTMLElement).dataset.index ?? "0",
-					);
-					setActiveIndex(index);
-				}
-			},
-			// Only the panel filling most of the viewport counts as current.
-			{ root: container, threshold: 0.6 },
-		);
-		for (const panel of container.querySelectorAll("[data-index]")) {
-			observer.observe(panel);
-		}
-		return () => observer.disconnect();
-	});
-
 	// Stop audio when the panel playing it scrolls out of view.
 	useEffect(() => {
-		const container = containerRef.current;
-		if (!container || !playingId) return;
+		if (!playingId) return;
 
 		const observer = new IntersectionObserver(
 			(observed) => {
@@ -131,8 +105,11 @@ export function RoundFeed({ channels }: { channels: string[] }) {
 					}
 				}
 			},
-			{ root: container, threshold: 0.4 },
+			// Document scroll now, so no `root` — the viewport is the root.
+			{ threshold: 0.4 },
 		);
+		const container = containerRef.current;
+		if (!container) return;
 		for (const panel of container.querySelectorAll("[data-panel]")) {
 			observer.observe(panel);
 		}
@@ -145,6 +122,16 @@ export function RoundFeed({ channels }: { channels: string[] }) {
 		(entry) => entry.round.state === "guessing",
 	).length;
 
+	// Anything still wanting a guess floats up. With the full-screen snap gone
+	// there is no "scroll to find the one you owe" — the actionable rooms are
+	// simply at the top. Ties keep the server's order so cards don't reshuffle
+	// under a thumb mid-scroll.
+	const ordered = [...entries].sort((a, b) => {
+		const aOwed = a.round.state === "guessing" ? 0 : 1;
+		const bOwed = b.round.state === "guessing" ? 0 : 1;
+		return aOwed - bOwed;
+	});
+
 	return (
 		<>
 			{/** biome-ignore lint/a11y/useMediaCaption: 30s music preview, not spoken content */}
@@ -156,13 +143,14 @@ export function RoundFeed({ channels }: { channels: string[] }) {
 
 			<div
 				ref={containerRef}
-				className="h-[100dvh] snap-y snap-mandatory overflow-y-scroll overscroll-y-contain [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+				className="mx-auto flex w-full max-w-xl flex-col gap-4 px-4 py-6 sm:px-6"
 			>
 				{entries.length === 0 ? (
 					<EmptyPanel />
 				) : (
 					<>
-						{entries.map((entry, index) => (
+						<FeedHeading remaining={unguessed} total={entries.length} />
+						{ordered.map((entry, index) => (
 							<Panel
 								key={entry.gameId}
 								entry={entry}
@@ -178,70 +166,34 @@ export function RoundFeed({ channels }: { channels: string[] }) {
 											: entry.round.track.previewUrl,
 									)
 								}
-								showHint={index === 0 && entries.length > 1}
 							/>
 						))}
 						<DonePanel remaining={unguessed} index={entries.length} />
 					</>
 				)}
 			</div>
-
-			{entries.length > 0 && (
-				<ProgressRail
-					entries={entries}
-					activeIndex={activeIndex}
-					remaining={unguessed}
-				/>
-			)}
 		</>
 	);
 }
 
 /**
- * Fixed rail showing one mark per room plus the final panel, so you can see how
- * many rounds are left without scrolling. A hollow mark still wants a guess; a
- * filled one is done. Purely indicative — it doesn't scroll the feed, since on
- * mobile the marks are far too small to be reliable tap targets.
+ * Replaces the old fixed progress rail: with every card in one normal scroll
+ * there is nothing to indicate position, but "how many do I still owe" was the
+ * genuinely useful half of that rail.
  */
-function ProgressRail({
-	entries,
-	activeIndex,
+function FeedHeading({
 	remaining,
+	total,
 }: {
-	entries: FeedEntry[];
-	activeIndex: number;
 	remaining: number;
+	total: number;
 }) {
 	return (
-		<div className="pointer-events-none fixed top-1/2 right-3 z-10 flex -translate-y-1/2 flex-col items-center gap-2">
-			{remaining > 0 && (
-				<span className="mb-1 font-mono text-[10px] font-bold tracking-widest tabular-nums text-muted-foreground [writing-mode:vertical-rl]">
-					{remaining} left
-				</span>
-			)}
-			{entries.map((entry, index) => {
-				const needsGuess = entry.round.state === "guessing";
-				const isActive = index === activeIndex;
-				return (
-					<motion.span
-						key={entry.gameId}
-						animate={{ scale: isActive ? 1.35 : 1 }}
-						transition={{ type: "spring", stiffness: 400, damping: 24 }}
-						className={`size-2 rounded-full border-2 border-foreground ${
-							needsGuess
-								? "bg-background"
-								: isActive
-									? "bg-brand"
-									: "bg-foreground"
-						}`}
-					/>
-				);
-			})}
-			<span
-				className={`h-3 w-0.5 ${
-					activeIndex === entries.length ? "bg-brand" : "bg-muted-foreground/40"
-				}`}
-			/>
+		<div className="flex items-baseline justify-between gap-3 pt-1">
+			<h1 className="text-2xl font-display tracking-wide uppercase">Today</h1>
+			<span className="font-mono text-xs font-semibold tracking-widest uppercase tabular-nums text-muted-foreground">
+				{remaining > 0 ? `${remaining} to guess` : `${total} done`}
+			</span>
 		</div>
 	);
 }
@@ -256,13 +208,21 @@ function Shell({
 	children: React.ReactNode;
 }) {
 	return (
-		<section
+		<motion.section
 			data-panel={id}
 			data-index={index}
-			className="relative flex h-[100dvh] snap-start snap-always flex-col items-center justify-center gap-6 px-6 py-8"
+			initial={{ opacity: 0, y: 12 }}
+			animate={{ opacity: 1, y: 0 }}
+			transition={{
+				delay: Math.min(index, 4) * 0.06,
+				type: "spring",
+				stiffness: 300,
+				damping: 26,
+			}}
+			className="relative flex flex-col items-center gap-6 border-2 border-foreground bg-background px-4 py-8 shadow-[4px_4px_0_0_var(--color-foreground)] sm:px-6"
 		>
 			{children}
-		</section>
+		</motion.section>
 	);
 }
 
@@ -273,7 +233,6 @@ function Panel({
 	onGuessed,
 	playing,
 	onTogglePreview,
-	showHint,
 }: {
 	entry: FeedEntry;
 	index: number;
@@ -281,7 +240,6 @@ function Panel({
 	onGuessed: (gameId: string, round: FeedEntry["round"]) => void;
 	playing: boolean;
 	onTogglePreview: () => void;
-	showHint: boolean;
 }) {
 	const round = entry.round;
 	if (round.state === "none") return null;
@@ -304,7 +262,9 @@ function Panel({
 			/>
 
 			<div className="flex max-w-sm flex-col items-center gap-1 text-center">
-				<p className="text-xl font-black tracking-tight">{round.track.title}</p>
+				{/* Stays on the sans: Bebas has no lowercase, and a song title is
+				    the artist's casing, not ours to flatten. */}
+				<p className="text-xl font-bold tracking-tight">{round.track.title}</p>
 				<p className="font-mono text-sm text-muted-foreground">
 					{round.track.artist}
 				</p>
@@ -325,16 +285,6 @@ function Panel({
 				)}
 				{round.state === "submitter" && <SubmitterBody round={round} />}
 			</div>
-
-			{showHint && (
-				<motion.div
-					animate={{ y: [0, 5, 0] }}
-					transition={{ duration: 1.6, repeat: Number.POSITIVE_INFINITY }}
-					className="absolute bottom-4 text-muted-foreground motion-reduce:hidden"
-				>
-					<ChevronDownIcon className="size-5" />
-				</motion.div>
-			)}
 		</Shell>
 	);
 }
@@ -549,7 +499,7 @@ function RevealedBody({
 				</span>
 				{/* Never showing a verdict to someone who didn't guess — missing the
 				    window isn't the same as being wrong. */}
-				<p className="text-lg font-black tracking-tight uppercase">
+				<p className="text-lg font-display tracking-wide uppercase">
 					{round.missed ? "Missed it" : round.correct ? "Got it" : "Nope"}
 				</p>
 				{round.points > 0 && (
@@ -636,7 +586,7 @@ function SubmitterBody({
 	return (
 		<div className="flex flex-col gap-3 border-2 border-foreground p-4">
 			<div className="flex items-center justify-between gap-3">
-				<p className="font-black tracking-tight uppercase">Your song 👀</p>
+				<p className="font-display tracking-wide uppercase">Your song 👀</p>
 				<motion.span
 					key={round.fooled}
 					initial={{ scale: 1.3 }}
@@ -714,13 +664,11 @@ function DonePanel({ remaining, index }: { remaining: number; index: number }) {
 					<SparklesIcon className="size-7" />
 				</motion.span>
 
-				<h2 className="text-3xl font-black tracking-tighter uppercase leading-[0.95]">
+				<h2 className="text-3xl font-display tracking-wide uppercase leading-[0.95]">
 					{done ? "All songs guessed" : `${remaining} still to guess`}
 				</h2>
 				<p className="max-w-xs font-mono text-sm text-muted-foreground">
-					{done
-						? "Bank a song for tomorrow's pool."
-						: "Scroll back up and finish the rest."}
+					{done ? "Bank a song for tomorrow's pool." : "Finish the rest above."}
 				</p>
 
 				{done && (
@@ -744,7 +692,7 @@ function EmptyPanel() {
 	return (
 		<Shell index={0}>
 			<div className="flex flex-col items-center gap-3 text-center">
-				<h2 className="text-3xl font-black tracking-tighter uppercase leading-[0.95]">
+				<h2 className="text-3xl font-display tracking-wide uppercase leading-[0.95]">
 					Nothing playing
 				</h2>
 				<p className="max-w-xs font-mono text-sm text-muted-foreground">

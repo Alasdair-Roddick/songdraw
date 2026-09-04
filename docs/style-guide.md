@@ -31,14 +31,22 @@ inline.
 
 ## Typography
 
-- **Display / page titles:** `font-black tracking-tight uppercase` (hero:
-  `tracking-tighter leading-[0.95]`). Highlight one word with
+- **Display / page titles:** `font-display tracking-wide uppercase` (hero adds
+  `leading-[0.95]`). The display face is **Bebas Neue** — condensed, caps-only,
+  one weight. `font-black` does nothing on it and `tracking-tighter`
+  over-condenses an already-narrow face, so neither belongs on display type any
+  more. Highlight one word with
   `bg-brand px-3 text-brand-foreground inline-block -rotate-1` (hero only).
+- **Never use `font-display` for body, labels, or anything a user types into.**
+  Bebas has no lowercase, so it silently destroys casing — song titles, display
+  names and emails all stay on the sans.
 - **Section eyebrows / labels:** `font-mono text-xs font-semibold
   tracking-widest uppercase text-muted-foreground`.
 - **Meta text** (taglines, emails, descriptions, empty states): `font-mono
   text-sm text-muted-foreground`.
 - **Body:** default sans, `font-medium`/`font-bold` for emphasis.
+- **Card / dialog titles:** stay on `font-heading` (the sans) — they read as UI,
+  not as posters, and often contain names.
 
 ## Borders, radius, shadows
 
@@ -76,7 +84,11 @@ inline.
 - Micro-interactions only: spring pops on selection
   (`type: "spring", stiffness: 400, damping: 22`), shake on errors
   (`x: [0, -6, 6, -3, 3, 0]`), step slides in multi-step forms.
-- No entrance fade-ins on static pages. Ambient motion is CSS-only:
+- No entrance fade-ins on app screens. The marketing landing page is the one
+  exception — it reads as a poster, not a tool — and even there the hero plays
+  once on arrival and everything below reveals on scroll with
+  `viewport={{ once: true }}`, so nothing stays hidden from a reader who
+  doesn't scroll. Ambient motion is CSS-only:
   `equalize` (EQ bars) and `marquee` keyframes, always with
   `motion-reduce:animate-none`.
 - Client pages use `motion/react`; server pages get CSS animations only.

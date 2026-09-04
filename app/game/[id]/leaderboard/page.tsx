@@ -88,7 +88,7 @@ export default async function LeaderboardPage({
 					<p className="font-mono text-xs font-semibold tracking-widest uppercase text-muted-foreground">
 						This room only
 					</p>
-					<h1 className="text-4xl font-black tracking-tighter uppercase">
+					<h1 className="text-4xl font-display tracking-wide uppercase">
 						Leaderboard
 					</h1>
 				</div>

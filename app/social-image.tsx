@@ -24,11 +24,20 @@ const paper = "#ffffff";
 // next.config.ts for why these files need an explicit tracing entry.
 async function displayFonts() {
 	const dir = join(process.cwd(), "app/fonts");
-	const [black, semibold] = await Promise.all([
+	const [bebas, black, semibold] = await Promise.all([
+		readFile(join(dir, "BebasNeue-Regular.ttf")),
 		readFile(join(dir, "Geist-Black.ttf")),
 		readFile(join(dir, "Geist-SemiBold.ttf")),
 	]);
 	return [
+		// Same split as the app: Bebas for the headline, Geist for everything
+		// that has to stay readable small.
+		{
+			name: "Bebas Neue",
+			data: bebas,
+			weight: 400 as const,
+			style: "normal" as const,
+		},
 		{
 			name: "Geist",
 			data: black,
@@ -86,13 +95,19 @@ export async function createSocialImage() {
 						))}
 					</div>
 					<span
-						style={{ fontSize: 34, fontWeight: 700, letterSpacing: "-0.04em" }}
+						style={{
+							fontFamily: "Geist",
+							fontSize: 34,
+							fontWeight: 900,
+							letterSpacing: "-0.04em",
+						}}
 					>
 						SongDraw
 					</span>
 				</div>
 				<span
 					style={{
+						fontFamily: "Geist",
 						fontSize: 22,
 						fontWeight: 600,
 						letterSpacing: "0.18em",
@@ -114,10 +129,10 @@ export async function createSocialImage() {
 				<div style={{ display: "flex", flexDirection: "column" }}>
 					<span
 						style={{
-							fontSize: 108,
-							fontWeight: 900,
-							letterSpacing: "-0.055em",
-							lineHeight: 1,
+							fontFamily: "Bebas Neue",
+							fontSize: 132,
+							letterSpacing: "0.02em",
+							lineHeight: 0.94,
 						}}
 					>
 						WHOSE
@@ -137,10 +152,10 @@ export async function createSocialImage() {
 					>
 						<span
 							style={{
-								fontSize: 108,
-								fontWeight: 900,
-								letterSpacing: "-0.055em",
-								lineHeight: 1,
+								fontFamily: "Bebas Neue",
+								fontSize: 132,
+								letterSpacing: "0.02em",
+								lineHeight: 0.94,
 							}}
 						>
 							SONG
@@ -148,11 +163,11 @@ export async function createSocialImage() {
 					</div>
 					<span
 						style={{
-							fontSize: 108,
-							fontWeight: 900,
-							letterSpacing: "-0.055em",
-							lineHeight: 1,
-							marginTop: 12,
+							fontFamily: "Bebas Neue",
+							fontSize: 132,
+							letterSpacing: "0.02em",
+							lineHeight: 0.94,
+							marginTop: 6,
 						}}
 					>
 						IS THIS?
@@ -175,7 +190,12 @@ export async function createSocialImage() {
 					}}
 				>
 					<span
-						style={{ fontSize: 19, fontWeight: 700, letterSpacing: "0.14em" }}
+						style={{
+							fontFamily: "Geist",
+							fontSize: 19,
+							fontWeight: 600,
+							letterSpacing: "0.14em",
+						}}
 					>
 						TODAY&apos;S TRACK
 					</span>
@@ -200,7 +220,12 @@ export async function createSocialImage() {
 						))}
 					</div>
 					<span
-						style={{ fontSize: 19, fontWeight: 700, letterSpacing: "0.1em" }}
+						style={{
+							fontFamily: "Geist",
+							fontSize: 19,
+							fontWeight: 600,
+							letterSpacing: "0.1em",
+						}}
 					>
 						LISTEN → GUESS
 					</span>
@@ -218,15 +243,21 @@ export async function createSocialImage() {
 				}}
 			>
 				<span
-					style={{ fontSize: 24, fontWeight: 700, letterSpacing: "0.12em" }}
+					style={{
+						fontFamily: "Geist",
+						fontSize: 24,
+						fontWeight: 600,
+						letterSpacing: "0.12em",
+					}}
 				>
 					SONGDRAW.PARTY
 				</span>
 				<span
 					style={{
 						color: brand,
+						fontFamily: "Geist",
 						fontSize: 24,
-						fontWeight: 700,
+						fontWeight: 600,
 						letterSpacing: "0.12em",
 					}}
 				>
