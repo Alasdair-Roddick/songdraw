@@ -4,6 +4,7 @@ import { headers } from "next/headers";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { AppHeader } from "@/components/app-header";
+import { LiveRefresh } from "@/components/live-refresh";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
@@ -13,6 +14,7 @@ import { guess, round } from "@/lib/db/round";
 import { user } from "@/lib/db/schema";
 import { trackAsset } from "@/lib/db/track-asset";
 import { activeMembership } from "@/lib/games";
+import { gameChannel } from "@/lib/realtime";
 import { gameDate } from "@/lib/round-date";
 
 export default async function HistoryPage({
@@ -77,7 +79,8 @@ export default async function HistoryPage({
 	return (
 		<div className="flex flex-1 flex-col">
 			<AppHeader />
-			<main className="mx-auto flex w-full max-w-4xl flex-1 flex-col gap-6 px-6 py-8">
+			<LiveRefresh channels={[gameChannel(id)]} />
+			<main className="mx-auto flex w-full max-w-4xl flex-1 flex-col gap-6 px-4 py-8 sm:px-6">
 				<Link
 					href={`/game/${id}`}
 					className="flex w-fit items-center gap-1.5 font-mono text-xs font-semibold tracking-widest uppercase text-muted-foreground hover:text-foreground"
@@ -100,21 +103,21 @@ export default async function HistoryPage({
 					<ol className="flex flex-col gap-4">
 						{rounds.map((item) => (
 							<li key={item.id} className="border-2 border-foreground p-4">
-								<div className="flex gap-3">
+								<div className="flex min-w-0 gap-3">
 									{item.artworkUrl && (
 										// biome-ignore lint/performance/noImgElement: remote iTunes artwork, no next/image benefit
 										<img
 											src={item.artworkUrl}
 											alt=""
-											className="size-14 object-cover"
+											className="size-14 shrink-0 object-cover"
 										/>
 									)}
-									<div>
+									<div className="min-w-0">
 										<p className="font-mono text-xs text-muted-foreground">
 											{item.date}
 										</p>
-										<p className="font-bold">{item.title}</p>
-										<p className="text-sm text-muted-foreground">
+										<p className="font-bold break-words">{item.title}</p>
+										<p className="text-sm break-words text-muted-foreground">
 											{item.artist} · submitted by {item.submitter.name}
 										</p>
 									</div>
@@ -123,9 +126,9 @@ export default async function HistoryPage({
 									{(byRound.get(item.id) ?? []).map((entry) => (
 										<li
 											key={`${item.id}-${entry.name}`}
-											className="flex items-center gap-2 text-sm"
+											className="flex min-w-0 items-center gap-2 text-sm"
 										>
-											<Avatar className="size-5">
+											<Avatar className="size-5 shrink-0">
 												{entry.image && (
 													<AvatarImage src={entry.image} alt={entry.name} />
 												)}
@@ -133,8 +136,8 @@ export default async function HistoryPage({
 													{entry.name.charAt(0).toUpperCase()}
 												</AvatarFallback>
 											</Avatar>
-											<span>{entry.name}</span>
-											<span className="ml-auto font-mono text-xs uppercase text-muted-foreground">
+											<span className="truncate">{entry.name}</span>
+											<span className="ml-auto shrink-0 font-mono text-xs uppercase text-muted-foreground">
 												{entry.correct ? "correct" : "fooled"}
 											</span>
 										</li>

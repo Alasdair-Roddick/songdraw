@@ -1,12 +1,10 @@
 "use client";
 
-import { LoaderCircleIcon, MailIcon } from "lucide-react";
+import { LoaderCircleIcon, MailCheckIcon, MailIcon } from "lucide-react";
 import { motion } from "motion/react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { AuthShell } from "@/components/auth/auth-shell";
-import { PasswordInput } from "@/components/password-input";
 import { Button } from "@/components/ui/button";
 import {
 	Card,
@@ -17,12 +15,11 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { signIn } from "@/lib/auth-client";
+import { requestPasswordReset } from "@/lib/auth-client";
 
-export default function LoginPage() {
-	const router = useRouter();
+export default function ForgotPasswordPage() {
 	const [email, setEmail] = useState("");
-	const [password, setPassword] = useState("");
+	const [sent, setSent] = useState(false);
 	const [error, setError] = useState<string | null>(null);
 	const [loading, setLoading] = useState(false);
 
@@ -31,14 +28,50 @@ export default function LoginPage() {
 		setError(null);
 		setLoading(true);
 
-		const { error: signInError } = await signIn.email({ email, password });
+		// `redirectTo` is where Better Auth's token callback lands the user once
+		// it has validated the token — see app/reset-password.
+		const { error: resetError } = await requestPasswordReset({
+			email,
+			redirectTo: "/reset-password",
+		});
 
 		setLoading(false);
-		if (signInError) {
-			setError(signInError.message ?? "Couldn't log in — check your details.");
+		if (resetError) {
+			setError(resetError.message ?? "Couldn't send the email — try again.");
 			return;
 		}
-		router.push("/home");
+		setSent(true);
+	}
+
+	// Deliberately identical whether or not the address exists — the endpoint
+	// answers the same way, and saying "no such account" would turn this form
+	// into a way to test who has one.
+	if (sent) {
+		return (
+			<AuthShell>
+				<Card className="w-full rounded-none border-2 border-foreground shadow-[6px_6px_0_0_var(--color-foreground)] ring-0">
+					<CardHeader>
+						<CardTitle className="flex items-center gap-2 text-xl font-black tracking-tight uppercase">
+							<MailCheckIcon className="size-5" /> Check your email
+						</CardTitle>
+					</CardHeader>
+					<CardContent>
+						<p className="font-mono text-sm text-muted-foreground">
+							If an account uses {email}, a reset link is on its way. It works
+							once and expires in an hour.
+						</p>
+					</CardContent>
+					<CardFooter className="justify-center border-t-2 border-foreground text-sm">
+						<Link
+							href="/login"
+							className="font-semibold text-foreground underline underline-offset-4"
+						>
+							Back to log in
+						</Link>
+					</CardFooter>
+				</Card>
+			</AuthShell>
+		);
 	}
 
 	return (
@@ -46,7 +79,7 @@ export default function LoginPage() {
 			<Card className="w-full rounded-none border-2 border-foreground shadow-[6px_6px_0_0_var(--color-foreground)] ring-0">
 				<CardHeader>
 					<CardTitle className="text-xl font-black tracking-tight uppercase">
-						Welcome back
+						Forgot password
 					</CardTitle>
 				</CardHeader>
 				<CardContent>
@@ -67,24 +100,6 @@ export default function LoginPage() {
 								/>
 							</div>
 						</div>
-						<div className="flex flex-col gap-2">
-							<div className="flex items-center justify-between">
-								<Label htmlFor="password">Password</Label>
-								<Link
-									href="/forgot-password"
-									className="font-mono text-xs text-muted-foreground underline underline-offset-4 hover:text-foreground"
-								>
-									Forgot?
-								</Link>
-							</div>
-							<PasswordInput
-								id="password"
-								autoComplete="current-password"
-								required
-								value={password}
-								onChange={(e) => setPassword(e.target.value)}
-							/>
-						</div>
 						{error && (
 							<motion.p
 								key={error}
@@ -102,17 +117,17 @@ export default function LoginPage() {
 							disabled={loading}
 						>
 							{loading && <LoaderCircleIcon className="animate-spin" />}
-							{loading ? "Logging in…" : "Log in"}
+							{loading ? "Sending…" : "Send reset link"}
 						</Button>
 					</form>
 				</CardContent>
 				<CardFooter className="justify-center gap-1 border-t-2 border-foreground text-sm text-muted-foreground">
-					New here?
+					Remembered it?
 					<Link
-						href="/signup"
+						href="/login"
 						className="font-semibold text-foreground underline underline-offset-4"
 					>
-						Create an account
+						Log in
 					</Link>
 				</CardFooter>
 			</Card>

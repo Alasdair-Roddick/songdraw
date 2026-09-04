@@ -24,34 +24,50 @@ export function RoundFeed({ channels }: { channels: string[] }) {
 
 	// Rounds that flipped to revealed while this tab was open get the full
 	// reveal animation; ones already revealed on first load just render.
-	const previousStates = useRef<Map<string, string>>(new Map());
+	//
+	// The transition is detected during render rather than in an effect. Holding
+	// the previous states in state (not a ref) keeps that comparison idempotent
+	// under StrictMode's double render, and React re-runs the render before
+	// committing — so there is no cascading update to warn about.
+	const stateKey = entries
+		.map((entry) => `${entry.gameId}:${entry.round.state}`)
+		.join("|");
+	const [seenKey, setSeenKey] = useState(stateKey);
 	const [justRevealed, setJustRevealed] = useState<Set<string>>(new Set());
 
-	useEffect(() => {
-		const seen = previousStates.current;
-		const fresh = new Set<string>();
-		for (const entry of entries) {
-			const before = seen.get(entry.gameId);
-			if (before && before !== "revealed" && entry.round.state === "revealed") {
-				fresh.add(entry.gameId);
-			}
-			seen.set(entry.gameId, entry.round.state);
-		}
-		if (fresh.size > 0) {
+	if (stateKey !== seenKey) {
+		const before = new Map(
+			seenKey
+				.split("|")
+				.filter(Boolean)
+				.map((pair) => {
+					const split = pair.lastIndexOf(":");
+					return [pair.slice(0, split), pair.slice(split + 1)] as const;
+				}),
+		);
+		const fresh = entries
+			.filter((entry) => {
+				const prior = before.get(entry.gameId);
+				return (
+					prior && prior !== "revealed" && entry.round.state === "revealed"
+				);
+			})
+			.map((entry) => entry.gameId);
+
+		setSeenKey(stateKey);
+		if (fresh.length > 0) {
 			setJustRevealed((current) => new Set([...current, ...fresh]));
-			// Let it play, then fall back to the resting layout.
-			const timer = setTimeout(
-				() =>
-					setJustRevealed((current) => {
-						const next = new Set(current);
-						for (const id of fresh) next.delete(id);
-						return next;
-					}),
-				2600,
-			);
-			return () => clearTimeout(timer);
 		}
-	}, [entries]);
+	}
+
+	// Let the animation play, then fall back to the resting layout. The state
+	// update lives in the timeout callback, so nothing is set synchronously
+	// while the effect body runs.
+	useEffect(() => {
+		if (justRevealed.size === 0) return;
+		const timer = setTimeout(() => setJustRevealed(new Set()), 2600);
+		return () => clearTimeout(timer);
+	}, [justRevealed]);
 
 	// One shared <audio> across the whole feed, so scrolling to a new record
 	// can't leave two previews overlapping.
@@ -703,7 +719,7 @@ function DonePanel({ remaining, index }: { remaining: number; index: number }) {
 				</h2>
 				<p className="max-w-xs font-mono text-sm text-muted-foreground">
 					{done
-						? "Bank a song for tomorrow's pool — it's your ticket to being played."
+						? "Bank a song for tomorrow's pool."
 						: "Scroll back up and finish the rest."}
 				</p>
 

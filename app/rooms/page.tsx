@@ -52,7 +52,7 @@ export default async function RoomsPage() {
 		<div className="flex flex-1 flex-col">
 			<AppHeader />
 			<LiveRefresh channels={channels} />
-			<main className="mx-auto flex w-full max-w-4xl flex-1 flex-col gap-6 px-6 py-8">
+			<main className="mx-auto flex w-full max-w-4xl flex-1 flex-col gap-6 px-4 py-8 sm:px-6">
 				<div className="flex flex-wrap items-end justify-between gap-3">
 					<div className="flex flex-col gap-1">
 						<h1 className="text-4xl font-black tracking-tighter uppercase leading-[0.95]">
