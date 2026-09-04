@@ -167,16 +167,26 @@ export function RoundFeed({ channels }: { channels: string[] }) {
 			/>
 
 			{/*
-			 * One room per screen. `proximity` rather than `mandatory` on purpose:
-			 * a room taller than the viewport (long member list, reveal open) has
-			 * no snap point in its middle, and under `mandatory` letting go
-			 * mid-room yanks you back to its top — the content below becomes
-			 * unreachable. `proximity` snaps crisply at the edges and leaves you
-			 * alone while you're reading through a tall one.
+			 * One room per screen, hard-locked. `mandatory` + `snap-always` is
+			 * what makes a small flick advance exactly one room instead of
+			 * drifting; `snap-always` also stops a fast flick skipping past two.
+			 *
+			 * The reason this doesn't trap a room taller than the viewport is
+			 * the oversized-snap-area rule: when a snap area is larger than the
+			 * snapport, *every* position that still covers the snapport is a
+			 * valid snap position, so mandatory snapping stops fighting you for
+			 * the whole height of that room. Measured headless at 390x844 with
+			 * a 1514px room: a 60px nudge inside a short room returns to its
+			 * top (locked), 250px into the tall room stays exactly where it was
+			 * put (free), and scrolling to its end locks onto the next room.
+			 *
+			 * This only holds while panels use `min-h`, never a fixed `h` — a
+			 * fixed height can't produce an oversized snap area, which is how
+			 * the clipping bug and the trapping bug were the same bug.
 			 */}
 			<div
 				ref={containerRef}
-				className="h-[100dvh] snap-y snap-proximity overflow-y-scroll overscroll-y-contain [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+				className="h-[100dvh] snap-y snap-mandatory overflow-y-scroll overscroll-y-contain [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
 			>
 				{entries.length === 0 ? (
 					<EmptyPanel />
@@ -278,16 +288,17 @@ function Shell({
 	hint?: React.ReactNode;
 }) {
 	return (
-		// `min-h`, not `h`. Measured in a headless browser at 390x844: with a
-		// fixed `h-[100dvh]` a room needing ~1264px stayed pinned at 757px and
-		// its last block fell outside the section with no way to reach it. With
-		// `min-h` the section grows to 1280px and nothing is cut off. The inner
-		// `m-auto` just centres the common short room — once `min-h` lets the
-		// section grow there is no negative free space for it to resolve.
+		// `min-h`, not `h`, and this is load-bearing twice over. Measured at
+		// 390x844: with a fixed `h-[100dvh]` a room needing ~1264px stayed
+		// pinned at 757px and its last block fell outside the section entirely.
+		// `min-h` lets it grow to 1280px so nothing is cut off — and growing
+		// past the viewport is also what makes it an oversized snap area, which
+		// is what lets you scroll freely inside it (see the container above).
+		// The inner `m-auto` only centres the common short room.
 		<section
 			data-panel={id}
 			data-index={index}
-			className="relative flex min-h-[100dvh] snap-start flex-col px-4 py-8 sm:px-6"
+			className="relative flex min-h-[100dvh] snap-start snap-always flex-col px-4 py-8 sm:px-6"
 		>
 			<div className="m-auto flex w-full max-w-md flex-col items-center gap-6">
 				{children}
