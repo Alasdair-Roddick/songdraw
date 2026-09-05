@@ -137,10 +137,21 @@ export async function POST(
 					});
 			}
 		});
-	} catch {
+	} catch (err) {
+		// Only a unique violation on (round_id, guesser) means "already guessed".
+		// This used to catch everything, so a pooler timeout or a dropped
+		// connection told the player they'd already answered — losing their guess
+		// and logging nothing. Anything else is ours, and should say so.
+		if ((err as { code?: string })?.code === "23505") {
+			return NextResponse.json(
+				{ error: "You've already guessed today." },
+				{ status: 409 },
+			);
+		}
+		console.error(`guess failed for game ${gameId}`, err);
 		return NextResponse.json(
-			{ error: "You've already guessed today." },
-			{ status: 409 },
+			{ error: "Couldn't record that guess — try again." },
+			{ status: 500 },
 		);
 	}
 

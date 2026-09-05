@@ -19,3 +19,22 @@ jobs:
       - run: bun install --frozen-lockfile
       - run: bun run check
       - run: bun run build
+
+  # Deploy lives here rather than in its own workflow because `needs:` only
+  # works between jobs in the same file. As two workflows they raced: a push to
+  # main deployed regardless of whether lint, typecheck, tests or the build had
+  # passed, so a red build still shipped.
+  deploy:
+    name: Deploy app
+    needs: verify
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    concurrency: deploy-group
+    steps:
+      - uses: actions/checkout@v4
+      - uses: superfly/flyctl-actions/setup-flyctl@master
+      # Applies migrations via the release_command in fly.toml before any new
+      # Machine takes traffic; a failed migration aborts the deploy.
+      - run: flyctl deploy --remote-only
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}

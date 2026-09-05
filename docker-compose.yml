@@ -13,7 +13,9 @@ services:
       - internal
       - proxy
     healthcheck:
-      test: ["CMD", "wget", "--spider", "-q", "http://127.0.0.1:3000/"]
+      # Not `/` — that's the marketing landing page, which renders perfectly
+      # with a dead database. /api/health actually touches Postgres.
+      test: ["CMD", "wget", "--spider", "-q", "http://127.0.0.1:3000/api/health"]
       interval: 10s
       timeout: 5s
       retries: 5

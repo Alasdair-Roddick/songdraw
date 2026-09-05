@@ -2,6 +2,10 @@
 // until a game has this many active members.
 export const MIN_MEMBERS = 3;
 
+/** Room names are rendered as a page heading; long enough to be expressive,
+ * short enough not to break the layout or the invite list. */
+export const MAX_GAME_NAME = 60;
+
 // Stable identities for the seat meter, so the fixed-length row doesn't need
 // array indices as React keys.
 export const SEATS = ["first", "second", "third"] as const;

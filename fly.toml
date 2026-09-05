@@ -8,6 +8,13 @@ primary_region = 'syd'
 
 [build]
 
+# Runs after the image builds, before any new Machine takes traffic. Until this
+# existed, migrations had never run on Fly at all — every deploy shipped new
+# code against whatever schema the database happened to have. A non-zero exit
+# aborts the deploy, which is the point.
+[deploy]
+  release_command = 'node migrate.mjs'
+
 [env]
   APP_URL = 'https://songdraw.fly.dev'
 
@@ -22,6 +29,16 @@ primary_region = 'syd'
   auto_start_machines = true
   min_machines_running = 0
   processes = ['app']
+
+  # There was no application-level health signal at all. `/` is the marketing
+  # landing page and renders fine with a dead database, so Fly would have kept
+  # routing to a Machine that couldn't serve a single round.
+  [[http_service.checks]]
+    interval = '30s'
+    timeout = '5s'
+    grace_period = '10s'
+    method = 'GET'
+    path = '/api/health'
 
 [[vm]]
   memory = '1gb'

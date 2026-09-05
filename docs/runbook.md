@@ -6,27 +6,52 @@ from the trusted host.
 
 ## Before the first migration-based deployment
 
-The production database was created with `drizzle-kit push`, so its existing
-schema must be recorded as having applied the initial migration. Do this once,
-after taking a backup and before deploying the Compose change. The commands
-derive the exact values Drizzle records; do not substitute the migration tag
-for the file hash.
+Deploys now run `node migrate.mjs` as the Fly `release_command` (`fly.toml`), so
+this happens automatically from here on. The one-time hazard is the *first* such
+deploy: the production database was created with `drizzle-kit push`, so it has
+the tables but no record of having applied any migration. The migrator would
+then run `0000_baseline.sql` from the top, hit `relation "user" already exists`,
+and **abort the deploy** — no new Machine takes traffic until it's resolved.
 
-```bash
-BASELINE_HASH="$(sha256sum drizzle/0000_baseline.sql | cut -d ' ' -f1)"
-BASELINE_CREATED_AT="$(jq -r '.entries[] | select(.tag == "0000_baseline") | .when' drizzle/meta/_journal.json)"
-psql "$DATABASE_URL" -c 'CREATE TABLE IF NOT EXISTS "__drizzle_migrations" ("id" serial PRIMARY KEY NOT NULL, "hash" text NOT NULL, "created_at" bigint);'
-psql "$DATABASE_URL" -c "INSERT INTO \"__drizzle_migrations\" (\"hash\", \"created_at\") SELECT '$BASELINE_HASH', $BASELINE_CREATED_AT WHERE NOT EXISTS (SELECT 1 FROM \"__drizzle_migrations\" WHERE \"hash\" = '$BASELINE_HASH');"
+Check first. In the Supabase SQL editor for the production project:
+
+```sql
+select count(*) from drizzle.__drizzle_migrations;
 ```
 
-Use the exact baseline tag documented alongside the migration. A new/empty
-database simply runs `bunx drizzle-kit migrate` normally. Every later schema
-change follows this sequence:
+- **Errors with "schema does not exist", or returns 0** — baseline it, below.
+- **Returns 2** (matching `drizzle/meta/_journal.json`) — nothing to do; the
+  release command will be a no-op.
+
+Note the schema. Drizzle's postgres-js migrator records state in
+`drizzle.__drizzle_migrations`, *not* `public.__drizzle_migrations`
+(`drizzle-orm/pg-core/dialect.cjs`: `migrationsSchema ?? "drizzle"`). An earlier
+version of this runbook wrote to the wrong one, which silently baselines
+nothing.
+
+Baseline, after taking a backup. `shasum -a 256` on macOS, `sha256sum` on Linux:
+
+```bash
+BASELINE_HASH="$(shasum -a 256 drizzle/0000_baseline.sql | cut -d ' ' -f1)"
+BASELINE_CREATED_AT="$(jq -r '.entries[] | select(.tag == "0000_baseline") | .when' drizzle/meta/_journal.json)"
+psql "$DATABASE_URL" -c 'CREATE SCHEMA IF NOT EXISTS "drizzle";'
+psql "$DATABASE_URL" -c 'CREATE TABLE IF NOT EXISTS "drizzle"."__drizzle_migrations" ("id" serial PRIMARY KEY NOT NULL, "hash" text NOT NULL, "created_at" bigint);'
+psql "$DATABASE_URL" -c "INSERT INTO \"drizzle\".\"__drizzle_migrations\" (\"hash\", \"created_at\") SELECT '$BASELINE_HASH', $BASELINE_CREATED_AT WHERE NOT EXISTS (SELECT 1 FROM \"drizzle\".\"__drizzle_migrations\" WHERE \"hash\" = '$BASELINE_HASH');"
+```
+
+Baseline **only** `0000_baseline`. Later migrations should genuinely run — but
+check them first: `0001_harsh_albert_cleary` creates a unique index on
+`lower(name)`, so it fails if two existing users share a display name
+case-insensitively. Confirm with
+`select lower(name), count(*) from "user" group by 1 having count(*) > 1;`
+before deploying.
+
+Every later schema change follows this sequence; the deploy applies it:
 
 ```bash
 bunx drizzle-kit generate
 git add drizzle
-docker compose run --rm migrate
+git push        # release_command applies it before any Machine takes traffic
 ```
 
 Never run `drizzle-kit push --force` against production.
