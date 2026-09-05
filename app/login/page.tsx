@@ -43,9 +43,9 @@ export default function LoginPage() {
 
 	return (
 		<AuthShell>
-			<Card className="w-full rounded-(--radius-frame) border-2 border-rule shadow-(--shadow-lift-lg) ring-0">
+			<Card className="w-full rounded-(--radius-frame) border-2 border-rule shadow-(--shadow-lift-lg)">
 				<CardHeader>
-					<CardTitle className="text-xl font-display tracking-wide uppercase">
+					<CardTitle className="text-xl font-display font-extrabold tracking-tight">
 						Welcome back
 					</CardTitle>
 				</CardHeader>

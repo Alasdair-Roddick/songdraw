@@ -125,7 +125,7 @@ export default function SignupPage() {
 
 	return (
 		<AuthShell>
-			<Card className="w-full rounded-(--radius-frame) border-2 border-rule shadow-(--shadow-lift-lg) ring-0">
+			<Card className="w-full rounded-(--radius-frame) border-2 border-rule shadow-(--shadow-lift-lg)">
 				<CardHeader>
 					<div className="mb-2 flex gap-1.5">
 						{STEP_TITLES.map((title, i) => (
@@ -138,7 +138,7 @@ export default function SignupPage() {
 							/>
 						))}
 					</div>
-					<CardTitle className="text-xl font-display tracking-wide uppercase">
+					<CardTitle className="text-xl font-display font-extrabold tracking-tight">
 						{STEP_TITLES[step]}
 					</CardTitle>
 				</CardHeader>

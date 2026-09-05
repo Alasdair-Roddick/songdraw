@@ -113,7 +113,7 @@ export default async function GamePage({
 					<div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
 						{/* A long room name shouldn't force a 4xl line to overflow a
 						    375px screen, so the display size steps down on mobile. */}
-						<h1 className="text-3xl font-display tracking-wide uppercase leading-[0.95] break-words sm:text-4xl">
+						<h1 className="text-3xl font-display font-extrabold tracking-tight leading-[0.95] break-words sm:text-4xl">
 							{current.name}
 						</h1>
 						<div className="flex flex-wrap items-center gap-2">

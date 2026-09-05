@@ -12,7 +12,7 @@
 	   Note: adding a key here needs a dev-server restart. Tailwind caches the
 	   resolved theme, so a new `--font-*` silently emits no utility until then
 	   and the class sits in the HTML doing nothing. */
-	--font-display: var(--font-bebas);
+	--font-display: var(--font-bricolage);
 	/* app/layout.tsx has loaded Geist Mono since the beginning, but nothing ever
 	   mapped it — so all 81 `font-mono` uses were quietly falling back to
 	   Tailwind's default ui-monospace stack. The label and numeral register of
@@ -67,98 +67,134 @@
 	--radius-4xl: calc(var(--radius) * 2.6);
 }
 
+/* ── Paper ────────────────────────────────────────────────────────────────
+   Warm chalky off-white rather than #ffffff, warm near-black rather than
+   #000. Nothing here is neutral grey: film isn't, and pure neutrals are what
+   made the old palette read as a template.
+
+   Every ratio below was computed, not eyeballed. Contrast against --background:
+   foreground 15.1:1 · muted-foreground 4.8:1 · brand-foreground on brand 8.2:1
+   · ring 3.5:1 · rule-strong 3.1:1. --rule is decorative only and has no
+   minimum (WCAG 1.4.11 applies to boundaries that identify a control). */
 :root {
-	/* ── Surface language ──────────────────────────────────────────────────
-	   The brutalist look was carried by three things no token controlled: a
-	   hardcoded `border-foreground` in 57 places, twelve literal offset
-	   shadows, and `rounded-none`. These give each of them a name, so the
-	   whole surface treatment can change in this file rather than across 27.
+	--rule: oklch(0.855 0.015 75);
+	--rule-strong: oklch(0.64 0.03 70);
+	/* Photographic prints are cut square; the softness comes from tone, not
+	   from corner radius. Just enough to take the edge off. */
+	--radius-frame: 2px;
 
-	   Seeded here at exactly today's values — introducing the indirection is
-	   deliberately a no-op, so the visual change lands as one revertable
-	   commit afterwards.
+	/* Halation, not a drop shadow: a tight contact shadow, a wide diffuse
+	   lift, and a warm bloom — the way light spills around a highlight on
+	   film. Layered box-shadow, never filter: blur() — a filter on a
+	   scroll-snap child creates a containing block and can drop snap
+	   alignment in Safari. */
+	--shadow-lift-lg:
+		0 1px 2px oklch(0.235 0.015 55 / 0.1),
+		0 10px 28px -10px oklch(0.235 0.015 55 / 0.2),
+		0 0 36px -14px oklch(0.76 0.135 68 / 0.4);
+	--shadow-lift:
+		0 1px 2px oklch(0.235 0.015 55 / 0.08),
+		0 5px 16px -8px oklch(0.235 0.015 55 / 0.16),
+		0 0 22px -12px oklch(0.76 0.135 68 / 0.32);
+	--shadow-lift-sm:
+		0 1px 2px oklch(0.235 0.015 55 / 0.1),
+		0 3px 10px -5px oklch(0.235 0.015 55 / 0.18);
 
-	   Two rules, not one, and the split matters: WCAG 1.4.11 wants 3:1 for a
-	   boundary that identifies a control, and asks nothing of a decorative
-	   divider. Softening every border to a single soft value would quietly
-	   destroy input affordance. */
-	--rule: var(--foreground);
-	--rule-strong: var(--foreground);
-	--radius-frame: 0px;
-	--shadow-lift-lg: 6px 6px 0 0 var(--color-foreground);
-	--shadow-lift: 4px 4px 0 0 var(--color-foreground);
-	--shadow-lift-sm: 3px 3px 0 0 var(--color-foreground);
-
-	--brand: oklch(0.85 0.18 90);
-	--brand-foreground: oklch(0.145 0 0);
-	--background: oklch(1 0 0);
-	--foreground: oklch(0.145 0 0);
-	--card: oklch(1 0 0);
-	--card-foreground: oklch(0.145 0 0);
-	--popover: oklch(1 0 0);
-	--popover-foreground: oklch(0.145 0 0);
-	--primary: oklch(0.205 0 0);
-	--primary-foreground: oklch(0.985 0 0);
-	--secondary: oklch(0.97 0 0);
-	--secondary-foreground: oklch(0.205 0 0);
-	--muted: oklch(0.97 0 0);
-	--muted-foreground: oklch(0.556 0 0);
-	--accent: oklch(0.97 0 0);
-	--accent-foreground: oklch(0.205 0 0);
-	--destructive: oklch(0.577 0.245 27.325);
-	--border: oklch(0.922 0 0);
-	--input: oklch(0.922 0 0);
-	--ring: oklch(0.708 0 0);
-	--chart-1: oklch(0.87 0 0);
-	--chart-2: oklch(0.556 0 0);
-	--chart-3: oklch(0.439 0 0);
-	--chart-4: oklch(0.371 0 0);
-	--chart-5: oklch(0.269 0 0);
+	--brand: oklch(0.76 0.135 68);
+	--brand-foreground: oklch(0.2 0.02 55);
+	--background: oklch(0.965 0.01 85);
+	--foreground: oklch(0.235 0.015 55);
+	/* Raised surfaces are a *lighter* sheet of the same paper. */
+	--card: oklch(0.985 0.008 85);
+	--card-foreground: oklch(0.235 0.015 55);
+	--popover: oklch(0.985 0.008 85);
+	--popover-foreground: oklch(0.235 0.015 55);
+	--primary: oklch(0.28 0.02 55);
+	--primary-foreground: oklch(0.97 0.01 85);
+	--secondary: oklch(0.925 0.012 80);
+	--secondary-foreground: oklch(0.28 0.02 55);
+	--muted: oklch(0.925 0.012 80);
+	--muted-foreground: oklch(0.53 0.02 65);
+	--accent: oklch(0.925 0.012 80);
+	--accent-foreground: oklch(0.28 0.02 55);
+	--destructive: oklch(0.55 0.19 27);
+	--border: oklch(0.885 0.012 78);
+	--input: oklch(0.885 0.012 78);
+	/* Focus gets its own token. It used to be brand at 1.6:1 on white, which
+	   was already below the 3:1 minimum before anything was softened. */
+	--ring: oklch(0.62 0.16 55);
+	--chart-1: oklch(0.76 0.135 68);
+	--chart-2: oklch(0.64 0.09 55);
+	--chart-3: oklch(0.53 0.06 60);
+	--chart-4: oklch(0.42 0.04 55);
+	--chart-5: oklch(0.31 0.025 55);
 	--radius: 0.625rem;
-	--sidebar: oklch(0.985 0 0);
-	--sidebar-foreground: oklch(0.145 0 0);
-	--sidebar-primary: oklch(0.205 0 0);
-	--sidebar-primary-foreground: oklch(0.985 0 0);
-	--sidebar-accent: oklch(0.97 0 0);
-	--sidebar-accent-foreground: oklch(0.205 0 0);
-	--sidebar-border: oklch(0.922 0 0);
-	--sidebar-ring: oklch(0.708 0 0);
+	--sidebar: oklch(0.985 0.008 85);
+	--sidebar-foreground: oklch(0.235 0.015 55);
+	--sidebar-primary: oklch(0.28 0.02 55);
+	--sidebar-primary-foreground: oklch(0.97 0.01 85);
+	--sidebar-accent: oklch(0.925 0.012 80);
+	--sidebar-accent-foreground: oklch(0.28 0.02 55);
+	--sidebar-border: oklch(0.885 0.012 78);
+	--sidebar-ring: oklch(0.62 0.16 55);
 }
 
+/* ── Darkroom ─────────────────────────────────────────────────────────────
+   Not an inverted greyscale: a room lit by a safelight. Warm near-black
+   ground, amber accent, and every surface a slightly different warm tone so
+   panels separate without needing a hard border.
+
+   Contrast against --background: foreground 15.5:1 · muted-foreground 6.1:1
+   · brand 7.3:1 · rule-strong 3.4:1. */
 .dark {
-	--brand: oklch(0.85 0.18 90);
-	--brand-foreground: oklch(0.145 0 0);
-	--background: oklch(0.145 0 0);
-	--foreground: oklch(0.985 0 0);
-	--card: oklch(0.205 0 0);
-	--card-foreground: oklch(0.985 0 0);
-	--popover: oklch(0.205 0 0);
-	--popover-foreground: oklch(0.985 0 0);
-	--primary: oklch(0.922 0 0);
-	--primary-foreground: oklch(0.205 0 0);
-	--secondary: oklch(0.269 0 0);
-	--secondary-foreground: oklch(0.985 0 0);
-	--muted: oklch(0.269 0 0);
-	--muted-foreground: oklch(0.708 0 0);
-	--accent: oklch(0.269 0 0);
-	--accent-foreground: oklch(0.985 0 0);
-	--destructive: oklch(0.704 0.191 22.216);
-	--border: oklch(1 0 0 / 10%);
-	--input: oklch(1 0 0 / 15%);
-	--ring: oklch(0.556 0 0);
-	--chart-1: oklch(0.87 0 0);
-	--chart-2: oklch(0.556 0 0);
-	--chart-3: oklch(0.439 0 0);
-	--chart-4: oklch(0.371 0 0);
-	--chart-5: oklch(0.269 0 0);
-	--sidebar: oklch(0.205 0 0);
-	--sidebar-foreground: oklch(0.985 0 0);
-	--sidebar-primary: oklch(0.488 0.243 264.376);
-	--sidebar-primary-foreground: oklch(0.985 0 0);
-	--sidebar-accent: oklch(0.269 0 0);
-	--sidebar-accent-foreground: oklch(0.985 0 0);
-	--sidebar-border: oklch(1 0 0 / 10%);
-	--sidebar-ring: oklch(0.556 0 0);
+	--rule: oklch(0.3 0.015 50);
+	--rule-strong: oklch(0.52 0.02 55);
+	--radius-frame: 2px;
+
+	/* On a dark ground a cast shadow reads as nothing — the lift has to come
+	   from the bloom instead, which is also how a safelight actually behaves. */
+	--shadow-lift-lg:
+		0 1px 2px oklch(0 0 0 / 0.45), 0 12px 32px -12px oklch(0 0 0 / 0.6),
+		0 0 40px -12px oklch(0.72 0.15 55 / 0.28);
+	--shadow-lift:
+		0 1px 2px oklch(0 0 0 / 0.4), 0 6px 18px -8px oklch(0 0 0 / 0.5),
+		0 0 26px -12px oklch(0.72 0.15 55 / 0.22);
+	--shadow-lift-sm:
+		0 1px 2px oklch(0 0 0 / 0.45), 0 3px 10px -5px oklch(0 0 0 / 0.5);
+
+	--brand: oklch(0.72 0.15 55);
+	--brand-foreground: oklch(0.16 0.015 45);
+	--background: oklch(0.175 0.012 45);
+	--foreground: oklch(0.93 0.008 80);
+	--card: oklch(0.215 0.014 45);
+	--card-foreground: oklch(0.93 0.008 80);
+	--popover: oklch(0.215 0.014 45);
+	--popover-foreground: oklch(0.93 0.008 80);
+	--primary: oklch(0.9 0.01 80);
+	--primary-foreground: oklch(0.2 0.015 45);
+	--secondary: oklch(0.265 0.014 48);
+	--secondary-foreground: oklch(0.93 0.008 80);
+	--muted: oklch(0.265 0.014 48);
+	--muted-foreground: oklch(0.66 0.015 70);
+	--accent: oklch(0.265 0.014 48);
+	--accent-foreground: oklch(0.93 0.008 80);
+	--destructive: oklch(0.68 0.17 25);
+	--border: oklch(0.3 0.015 50);
+	--input: oklch(0.32 0.015 50);
+	--ring: oklch(0.68 0.15 55);
+	--chart-1: oklch(0.72 0.15 55);
+	--chart-2: oklch(0.63 0.1 55);
+	--chart-3: oklch(0.54 0.07 55);
+	--chart-4: oklch(0.44 0.05 50);
+	--chart-5: oklch(0.34 0.03 48);
+	--sidebar: oklch(0.215 0.014 45);
+	--sidebar-foreground: oklch(0.93 0.008 80);
+	--sidebar-primary: oklch(0.72 0.15 55);
+	--sidebar-primary-foreground: oklch(0.16 0.015 45);
+	--sidebar-accent: oklch(0.265 0.014 48);
+	--sidebar-accent-foreground: oklch(0.93 0.008 80);
+	--sidebar-border: oklch(0.3 0.015 50);
+	--sidebar-ring: oklch(0.68 0.15 55);
 }
 
 @layer base {

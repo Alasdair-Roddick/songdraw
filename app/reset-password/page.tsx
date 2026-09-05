@@ -59,9 +59,9 @@ function ResetPasswordForm() {
 
 	if (!token || callbackError) {
 		return (
-			<Card className="w-full rounded-(--radius-frame) border-2 border-rule shadow-(--shadow-lift-lg) ring-0">
+			<Card className="w-full rounded-(--radius-frame) border-2 border-rule shadow-(--shadow-lift-lg)">
 				<CardHeader>
-					<CardTitle className="flex items-center gap-2 text-xl font-display tracking-wide uppercase">
+					<CardTitle className="flex items-center gap-2 text-xl font-display font-extrabold tracking-tight">
 						<TriangleAlertIcon className="size-5" /> Link expired
 					</CardTitle>
 				</CardHeader>
@@ -84,9 +84,9 @@ function ResetPasswordForm() {
 	}
 
 	return (
-		<Card className="w-full rounded-(--radius-frame) border-2 border-rule shadow-(--shadow-lift-lg) ring-0">
+		<Card className="w-full rounded-(--radius-frame) border-2 border-rule shadow-(--shadow-lift-lg)">
 			<CardHeader>
-				<CardTitle className="text-xl font-display tracking-wide uppercase">
+				<CardTitle className="text-xl font-display font-extrabold tracking-tight">
 					New password
 				</CardTitle>
 			</CardHeader>

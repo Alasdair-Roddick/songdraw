@@ -1,7 +1,9 @@
 "use client";
 
+import { MoonIcon, SunIcon } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useTheme } from "next-themes";
+import { useEffect, useState } from "react";
 import { SettingsDialog } from "@/components/settings-dialog";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
@@ -12,6 +14,35 @@ import {
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { signOut } from "@/lib/auth-client";
+
+/**
+ * The `.dark` palette existed for months with no way to reach it — next-themes
+ * was installed but never imported. Renders nothing until mounted: the resolved
+ * theme isn't known on the server, so labelling the button before hydration
+ * would mean rendering the wrong one and then swapping it.
+ */
+function DarkroomToggle() {
+	const { resolvedTheme, setTheme } = useTheme();
+	const [mounted, setMounted] = useState(false);
+	useEffect(() => setMounted(true), []);
+	if (!mounted) return null;
+
+	const dark = resolvedTheme === "dark";
+	return (
+		<DropdownMenuItem
+			// Not `onSelect={() => setTheme(...)}` alone — the menu closes on
+			// select, and closing plus a full repaint in the same frame is where
+			// the flash comes from.
+			onSelect={(event) => {
+				event.preventDefault();
+				setTheme(dark ? "light" : "dark");
+			}}
+		>
+			{dark ? <SunIcon /> : <MoonIcon />}
+			{dark ? "Daylight" : "Darkroom"}
+		</DropdownMenuItem>
+	);
+}
 
 function initialsFor(name: string) {
 	return name
@@ -57,6 +88,7 @@ export function UserMenu({
 					<DropdownMenuItem onSelect={() => setSettingsOpen(true)}>
 						Settings
 					</DropdownMenuItem>
+					<DarkroomToggle />
 					<DropdownMenuSeparator />
 					<DropdownMenuItem
 						variant="destructive"

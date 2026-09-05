@@ -23,18 +23,18 @@ const { brand, ink, paper } = BRAND_HEX;
 // next.config.ts for why these files need an explicit tracing entry.
 async function displayFonts() {
 	const dir = join(process.cwd(), "app/fonts");
-	const [bebas, black, semibold] = await Promise.all([
-		readFile(join(dir, "BebasNeue-Regular.ttf")),
+	const [display, black, semibold] = await Promise.all([
+		readFile(join(dir, "BricolageGrotesque-ExtraBold.ttf")),
 		readFile(join(dir, "Geist-Black.ttf")),
 		readFile(join(dir, "Geist-SemiBold.ttf")),
 	]);
 	return [
-		// Same split as the app: Bebas for the headline, Geist for everything
+		// Same split as the app: Bricolage for the headline, Geist for everything
 		// that has to stay readable small.
 		{
-			name: "Bebas Neue",
-			data: bebas,
-			weight: 400 as const,
+			name: "Bricolage Grotesque",
+			data: display,
+			weight: 800 as const,
 			style: "normal" as const,
 		},
 		{
@@ -128,13 +128,13 @@ export async function createSocialImage() {
 				<div style={{ display: "flex", flexDirection: "column" }}>
 					<span
 						style={{
-							fontFamily: "Bebas Neue",
-							fontSize: 132,
-							letterSpacing: "0.02em",
-							lineHeight: 0.94,
+							fontFamily: "Bricolage Grotesque",
+							fontSize: 104,
+							letterSpacing: "-0.035em",
+							lineHeight: 0.95,
 						}}
 					>
-						WHOSE
+						Whose
 					</span>
 					{/* The landing page's signature move: one word knocked out on a
 					    tilted brand block. It is what makes the preview recognisable
@@ -151,25 +151,25 @@ export async function createSocialImage() {
 					>
 						<span
 							style={{
-								fontFamily: "Bebas Neue",
-								fontSize: 132,
-								letterSpacing: "0.02em",
-								lineHeight: 0.94,
+								fontFamily: "Bricolage Grotesque",
+								fontSize: 104,
+								letterSpacing: "-0.035em",
+								lineHeight: 0.95,
 							}}
 						>
-							SONG
+							Song
 						</span>
 					</div>
 					<span
 						style={{
-							fontFamily: "Bebas Neue",
-							fontSize: 132,
-							letterSpacing: "0.02em",
-							lineHeight: 0.94,
+							fontFamily: "Bricolage Grotesque",
+							fontSize: 104,
+							letterSpacing: "-0.035em",
+							lineHeight: 0.95,
 							marginTop: 6,
 						}}
 					>
-						IS THIS?
+						is this?
 					</span>
 				</div>
 
@@ -177,7 +177,7 @@ export async function createSocialImage() {
 					style={{
 						background: paper,
 						border: `4px solid ${ink}`,
-						boxShadow: `14px 14px 0 0 ${ink}`,
+						boxShadow: `0 18px 44px -18px ${ink}88, 0 0 60px -20px ${brand}`,
 						display: "flex",
 						flexDirection: "column",
 						height: 320,

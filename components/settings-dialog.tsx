@@ -200,7 +200,7 @@ export function SettingsDialog({
 				aria-describedby={undefined}
 			>
 				<DialogHeader>
-					<DialogTitle className="font-display tracking-wide uppercase">
+					<DialogTitle className="font-display font-extrabold tracking-tight">
 						Settings
 					</DialogTitle>
 				</DialogHeader>

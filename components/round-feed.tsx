@@ -360,8 +360,8 @@ function Panel({
 			/>
 
 			<div className="flex max-w-sm flex-col items-center gap-1 text-center">
-				{/* Stays on the sans: Bebas has no lowercase, and a song title is
-				    the artist's casing, not ours to flatten. */}
+				{/* Stays on the sans. Display type is for our words, not the
+				    artist's — a song title keeps whatever casing it shipped with. */}
 				<p className="text-xl font-bold tracking-tight">{round.track.title}</p>
 				<p className="font-mono text-sm text-muted-foreground">
 					{round.track.artist}
@@ -597,7 +597,7 @@ function RevealedBody({
 				</span>
 				{/* Never showing a verdict to someone who didn't guess — missing the
 				    window isn't the same as being wrong. */}
-				<p className="text-lg font-display tracking-wide uppercase">
+				<p className="text-lg font-display font-extrabold tracking-tight">
 					{round.missed ? "Missed it" : round.correct ? "Got it" : "Nope"}
 				</p>
 				{round.points > 0 && (
@@ -684,7 +684,9 @@ function SubmitterBody({
 	return (
 		<div className="flex flex-col gap-3 border-2 border-rule p-4">
 			<div className="flex items-center justify-between gap-3">
-				<p className="font-display tracking-wide uppercase">Your song 👀</p>
+				<p className="font-display font-extrabold tracking-tight">
+					Your song 👀
+				</p>
 				<motion.span
 					key={round.fooled}
 					initial={{ scale: 1.3 }}
@@ -762,7 +764,7 @@ function DonePanel({ remaining, index }: { remaining: number; index: number }) {
 					<SparklesIcon className="size-7" />
 				</motion.span>
 
-				<h2 className="text-3xl font-display tracking-wide uppercase leading-[0.95]">
+				<h2 className="text-3xl font-display font-extrabold tracking-tight leading-[0.95]">
 					{done ? "All songs guessed" : `${remaining} still to guess`}
 				</h2>
 				<p className="max-w-xs font-mono text-sm text-muted-foreground">
@@ -790,7 +792,7 @@ function EmptyPanel() {
 	return (
 		<Shell index={0}>
 			<div className="flex flex-col items-center gap-3 text-center">
-				<h2 className="text-3xl font-display tracking-wide uppercase leading-[0.95]">
+				<h2 className="text-3xl font-display font-extrabold tracking-tight leading-[0.95]">
 					Nothing playing
 				</h2>
 				<p className="max-w-xs font-mono text-sm text-muted-foreground">

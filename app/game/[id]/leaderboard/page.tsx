@@ -92,7 +92,7 @@ export default async function LeaderboardPage({
 					<p className="font-mono text-xs font-semibold tracking-widest uppercase text-muted-foreground">
 						This room only
 					</p>
-					<h1 className="text-4xl font-display tracking-wide uppercase">
+					<h1 className="text-4xl font-display font-extrabold tracking-tight">
 						Leaderboard
 					</h1>
 				</div>
@@ -119,7 +119,7 @@ export default async function LeaderboardPage({
 					// the round is live there is nothing to show that wouldn't name the
 					// submitter — a rising fool-point total is the answer.
 					<div className="flex flex-col gap-2 border-2 border-rule p-6">
-						<p className="font-display text-2xl tracking-wide uppercase">
+						<p className="font-display text-2xl font-extrabold tracking-tight">
 							Locked until the reveal
 						</p>
 						<p className="font-mono text-sm text-muted-foreground">

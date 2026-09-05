@@ -55,7 +55,7 @@ export default async function RoomsPage() {
 			<main className="mx-auto flex w-full max-w-4xl flex-1 flex-col gap-6 px-4 py-8 sm:px-6">
 				<div className="flex flex-wrap items-end justify-between gap-3">
 					<div className="flex flex-col gap-1">
-						<h1 className="text-4xl font-display tracking-wide uppercase leading-[0.95]">
+						<h1 className="text-4xl font-display font-extrabold tracking-tight leading-[0.95]">
 							Your{" "}
 							<span className="-rotate-1 inline-block bg-brand px-3 text-brand-foreground">
 								rooms
