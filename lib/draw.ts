@@ -1,9 +1,10 @@
 import { createHash } from "node:crypto";
-import { and, asc, eq, lt } from "drizzle-orm";
+import { and, asc, count, eq, lt } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { bankSong } from "@/lib/db/bank";
 import { gameMember } from "@/lib/db/game";
 import { guess, round, statSnapshot } from "@/lib/db/round";
+import { MIN_MEMBERS } from "@/lib/game-rules";
 import { previousDate } from "@/lib/round-date";
 
 // Seeded so a given (game, date) always draws the same song no matter how many
@@ -22,7 +23,11 @@ function seededRandom(seed: string) {
 export type DrawResult =
 	| { status: "created"; roundId: string }
 	| { status: "exists"; roundId: string }
-	| { status: "dry" };
+	| { status: "dry" }
+	// Distinct from `dry` on purpose: a dry pool means "feed me", a short room
+	// means "invite someone". They need different nudges, so the draw job counts
+	// them separately.
+	| { status: "below_minimum" };
 
 /**
  * Two-stage uniform draw (GamePlan §4): pick a member who still has a banked
@@ -45,6 +50,19 @@ export async function drawForGame(
 		if (existing.length > 0) {
 			return { status: "exists", roundId: existing[0].id } as const;
 		}
+
+		// GamePlan decision #3: the daily loop is closed below MIN_MEMBERS. This
+		// was previously enforced nowhere — the constant appeared only in the UI,
+		// so the game page showed "Locked" and the seat meter counted up while the
+		// cron drew real rounds behind it. Two people can trivially deduce every
+		// answer, which is the whole reason for the floor.
+		const [{ members }] = await tx
+			.select({ members: count() })
+			.from(gameMember)
+			.where(
+				and(eq(gameMember.gameId, gameId), eq(gameMember.status, "active")),
+			);
+		if (members < MIN_MEMBERS) return { status: "below_minimum" } as const;
 
 		// Ordered so the candidate list is identical on every replay — without
 		// this the seed wouldn't actually make the draw reproducible.
@@ -123,7 +141,15 @@ export async function closeRoundsBefore(today: string) {
 		})
 		.from(round)
 		.innerJoin(bankSong, eq(round.bankSongId, bankSong.id))
-		.where(and(eq(round.status, "open"), lt(round.roundDate, today)));
+		.where(and(eq(round.status, "open"), lt(round.roundDate, today)))
+		// Oldest first, and not optional. Streak continuity is decided by
+		// `lastPlayedDate === previousDate(roundDate)`, so settling days out of
+		// order breaks every streak that spans them. This only bites when the job
+		// misses a day and two rounds go stale at once — which is exactly the
+		// replay docs/runbook.md tells you to run to recover. The round flips to
+		// `closed` in the same transaction, so a wrong settlement can't be replayed
+		// away.
+		.orderBy(asc(round.roundDate));
 
 	let closed = 0;
 

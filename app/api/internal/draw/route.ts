@@ -43,7 +43,13 @@ export async function POST(request: Request) {
 		.from(game)
 		.where(eq(game.status, "active"));
 
-	const results = { created: 0, exists: 0, dry: 0, failed: 0 };
+	const results = {
+		created: 0,
+		exists: 0,
+		dry: 0,
+		below_minimum: 0,
+		failed: 0,
+	};
 
 	for (const current of games) {
 		try {

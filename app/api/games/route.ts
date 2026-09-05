@@ -1,9 +1,10 @@
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { headers } from "next/headers";
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { game, gameMember } from "@/lib/db/game";
+import { MAX_GAME_NAME } from "@/lib/game-rules";
 import { notifyUser } from "@/lib/realtime";
 
 export async function POST(request: Request) {
@@ -12,10 +13,18 @@ export async function POST(request: Request) {
 		return NextResponse.json({ error: "unauthorized" }, { status: 401 });
 	}
 
-	const body = await request.json();
+	// Unguarded, this threw on a malformed body and surfaced as a 500.
+	const body = await request.json().catch(() => null);
 	const name = typeof body?.name === "string" ? body.name.trim() : "";
 	if (!name) {
 		return NextResponse.json({ error: "name is required" }, { status: 400 });
+	}
+	// Unbounded before: any length was persisted and then rendered as a heading.
+	if (name.length > MAX_GAME_NAME) {
+		return NextResponse.json(
+			{ error: `Keep the name under ${MAX_GAME_NAME} characters.` },
+			{ status: 400 },
+		);
 	}
 
 	const created = await db.transaction(async (tx) => {
@@ -49,7 +58,16 @@ export async function GET() {
 		.select({ game, role: gameMember.role })
 		.from(gameMember)
 		.innerJoin(game, eq(gameMember.gameId, game.id))
-		.where(eq(gameMember.userId, session.user.id));
+		// `status` matters as much as `userId`. Removal is soft (the row stays with
+		// status "left"), so without this a removed member keeps seeing the room's
+		// name, id and owner here — while every other membership query in the app
+		// correctly filters them out.
+		.where(
+			and(
+				eq(gameMember.userId, session.user.id),
+				eq(gameMember.status, "active"),
+			),
+		);
 
 	return NextResponse.json(
 		rows.map((row) => ({ ...row.game, role: row.role })),
