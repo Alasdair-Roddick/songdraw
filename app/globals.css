@@ -82,6 +82,8 @@
 	/* Photographic prints are cut square; the softness comes from tone, not
 	   from corner radius. Just enough to take the edge off. */
 	--radius-frame: 2px;
+	/* 4% is the line between 'this has texture' and 'this is dirty'. */
+	--grain-opacity: 0.18;
 
 	/* Halation, not a drop shadow: a tight contact shadow, a wide diffuse
 	   lift, and a warm bloom — the way light spills around a highlight on
@@ -216,5 +218,46 @@
 	}
 	50% {
 		transform: scaleY(1);
+	}
+}
+
+/* ── Film grain ───────────────────────────────────────────────────────────
+   A pseudo-element, not a component. app/layout.tsx renders
+   `<body class="min-h-full flex flex-col">`, so any real element added there
+   becomes a flex item and would contend for space with the feed's 100dvh
+   scroller. A pseudo-element cannot, can't be re-rendered by React, and can't
+   accidentally end up inside the scroller.
+
+   The SVG is a fixed-size *background-image*, which the browser rasterises
+   once and tiles — not `filter: url(#noise)`, which recomputes per-pixel on
+   every paint and is GPU-heavy on mobile. Fixed dimensions plus an explicit
+   background-size mean it never re-rasterises when the iOS URL bar collapses
+   mid-scroll.
+
+   Deliberately no mix-blend-mode: blending a viewport-sized fixed layer can
+   knock the snap scroller off the compositor fast path in Safari, and the
+   grain reads fine as straight alpha over both paper and the darkroom.
+
+   `--grain-opacity: 0` disables the whole effect. */
+body::after {
+	content: "";
+	position: fixed;
+	inset: 0;
+	/* lvh, not dvh: dvh changes as the mobile URL bar hides, which would
+	   resize this layer during a scroll. */
+	height: 100lvh;
+	z-index: 60;
+	pointer-events: none;
+	opacity: var(--grain-opacity);
+	background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='384' height='384'%3E%3Cfilter id='l' x='0' y='0' width='100%' height='100%'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='4' stitchTiles='stitch' seed='7'/%3E%3CfeColorMatrix values='0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  1.6 0 0 0 -0.85'/%3E%3C/filter%3E%3Cfilter id='d' x='0' y='0' width='100%' height='100%'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='4' stitchTiles='stitch' seed='7'/%3E%3CfeColorMatrix values='0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  -1.6 0 0 0 0.75'/%3E%3C/filter%3E%3Crect width='384' height='384' filter='url(%23l)'/%3E%3Crect width='384' height='384' filter='url(%23d)'/%3E%3C/svg%3E");
+	background-size: 192px 192px;
+	background-repeat: repeat;
+	/* Its own compositing layer, so scrolling never repaints it. */
+	will-change: transform;
+}
+
+@media (prefers-reduced-transparency: reduce) {
+	body::after {
+		display: none;
 	}
 }
