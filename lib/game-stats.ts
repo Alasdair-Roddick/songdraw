@@ -1,4 +1,4 @@
-import { and, eq, gte } from "drizzle-orm";
+import { and, eq, gte, notInArray } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { bankSong } from "@/lib/db/bank";
 import { gameMember } from "@/lib/db/game";
@@ -6,6 +6,7 @@ import { guess, round, statSnapshot } from "@/lib/db/round";
 import { user } from "@/lib/db/schema";
 import { FOOL_POINTS } from "@/lib/game-rules";
 import { gameDate, previousDate } from "@/lib/round-date";
+import { unsettledRoundIds } from "@/lib/settled-rounds";
 
 export type LeaderboardPeriod = "day" | "week" | "all";
 
@@ -41,7 +42,7 @@ export async function leaderboardForGame(
 	gameId: string,
 	period: LeaderboardPeriod,
 ): Promise<LeaderboardRow[]> {
-	const [members, snapshots] = await Promise.all([
+	const [members, snapshots, unsettled] = await Promise.all([
 		db
 			.select({
 				memberId: gameMember.id,
@@ -55,6 +56,7 @@ export async function leaderboardForGame(
 				and(eq(gameMember.gameId, gameId), eq(gameMember.status, "active")),
 			),
 		db.select().from(statSnapshot).where(eq(statSnapshot.gameId, gameId)),
+		unsettledRoundIds(gameId),
 	]);
 
 	const rows = new Map(
@@ -94,6 +96,11 @@ export async function leaderboardForGame(
 			and(
 				eq(round.gameId, gameId),
 				start ? gte(round.roundDate, start) : undefined,
+				// Excluded from *every* period, not just "day". Fool points accrue
+				// the instant someone guesses wrong, so a live round would push the
+				// submitter up the weekly and all-time boards too — naming them just
+				// as loudly, and for the rest of the week.
+				unsettled.length > 0 ? notInArray(round.id, unsettled) : undefined,
 			),
 		);
 

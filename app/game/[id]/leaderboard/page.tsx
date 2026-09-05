@@ -12,6 +12,7 @@ import { game } from "@/lib/db/game";
 import { type LeaderboardPeriod, leaderboardForGame } from "@/lib/game-stats";
 import { activeMembership } from "@/lib/games";
 import { gameChannel } from "@/lib/realtime";
+import { hasLiveRoundToday } from "@/lib/settled-rounds";
 
 // One grid template for the header and the rows. Below `sm` the rows drop out
 // of the grid entirely and re-form as a stacked block, which is why the table
@@ -71,7 +72,10 @@ export default async function LeaderboardPage({
 		requested === "day" || requested === "week" || requested === "all"
 			? requested
 			: "all";
-	const rows = await leaderboardForGame(id, period);
+	const [rows, liveToday] = await Promise.all([
+		leaderboardForGame(id, period),
+		hasLiveRoundToday(id),
+	]);
 
 	return (
 		<div className="flex flex-1 flex-col">
@@ -110,57 +114,79 @@ export default async function LeaderboardPage({
 						</Link>
 					))}
 				</nav>
-				<div className="border-2 border-foreground">
-					<div
-						className={`hidden border-b-2 border-foreground px-3 py-2 font-mono text-xs tracking-widest uppercase text-muted-foreground ${COLUMNS}`}
-					>
-						<span>Player</span>
-						<span className="text-right">Points</span>
-						<span className="text-right">Accuracy</span>
-						<span className="text-right">Fooled</span>
-						<span className="text-right">Streak</span>
+				{liveToday && period === "day" ? (
+					// Today's board is derived entirely from today's guesses, so while
+					// the round is live there is nothing to show that wouldn't name the
+					// submitter — a rising fool-point total is the answer.
+					<div className="flex flex-col gap-2 border-2 border-foreground p-6">
+						<p className="font-display text-2xl tracking-wide uppercase">
+							Locked until the reveal
+						</p>
+						<p className="font-mono text-sm text-muted-foreground">
+							Today's scores would give away whose song is playing. This board
+							opens once everyone has guessed, or at 5pm.
+						</p>
 					</div>
-					<ul className="divide-y-2 divide-foreground">
-						{rows.map((row, index) => (
-							<li
-								key={row.memberId}
-								className={`px-3 py-3 ${COLUMNS} ${
-									index === 0 && rows.length > 1 ? "bg-brand/30" : ""
-								}`}
+				) : (
+					<>
+						{liveToday && (
+							<p className="font-mono text-xs tracking-widest uppercase text-muted-foreground">
+								Today's round isn't counted yet
+							</p>
+						)}
+						<div className="border-2 border-foreground">
+							<div
+								className={`hidden border-b-2 border-foreground px-3 py-2 font-mono text-xs tracking-widest uppercase text-muted-foreground ${COLUMNS}`}
 							>
-								<div className="flex min-w-0 items-center gap-2">
-									<span className="w-5 shrink-0 font-mono text-xs text-muted-foreground">
-										{index + 1}
-									</span>
-									<Avatar className="size-7 shrink-0">
-										{row.image && (
-											<AvatarImage src={row.image} alt={row.name} />
-										)}
-										<AvatarFallback>
-											{row.name.charAt(0).toUpperCase()}
-										</AvatarFallback>
-									</Avatar>
-									<span className="truncate font-semibold">{row.name}</span>
-								</div>
-								{/* `sm:contents` promotes these four back into the row grid on
+								<span>Player</span>
+								<span className="text-right">Points</span>
+								<span className="text-right">Accuracy</span>
+								<span className="text-right">Fooled</span>
+								<span className="text-right">Streak</span>
+							</div>
+							<ul className="divide-y-2 divide-foreground">
+								{rows.map((row, index) => (
+									<li
+										key={row.memberId}
+										className={`px-3 py-3 ${COLUMNS} ${
+											index === 0 && rows.length > 1 ? "bg-brand/30" : ""
+										}`}
+									>
+										<div className="flex min-w-0 items-center gap-2">
+											<span className="w-5 shrink-0 font-mono text-xs text-muted-foreground">
+												{index + 1}
+											</span>
+											<Avatar className="size-7 shrink-0">
+												{row.image && (
+													<AvatarImage src={row.image} alt={row.name} />
+												)}
+												<AvatarFallback>
+													{row.name.charAt(0).toUpperCase()}
+												</AvatarFallback>
+											</Avatar>
+											<span className="truncate font-semibold">{row.name}</span>
+										</div>
+										{/* `sm:contents` promotes these four back into the row grid on
 								    wide screens; on mobile they stay a labelled 4-up strip. */}
-								<div className="mt-2 grid grid-cols-4 gap-2 sm:contents">
-									<Stat label="Points" value={row.points} strong />
-									<Stat
-										label="Accuracy"
-										value={
-											row.total
-												? `${Math.round((row.correct / row.total) * 100)}%`
-												: "—"
-										}
-									/>
-									<Stat label="Fooled" value={row.foolPoints} />
-									<Stat label="Streak" value={row.currentStreak} />
-								</div>
-							</li>
-						))}
-					</ul>
-				</div>
+										<div className="mt-2 grid grid-cols-4 gap-2 sm:contents">
+											<Stat label="Points" value={row.points} strong />
+											<Stat
+												label="Accuracy"
+												value={
+													row.total
+														? `${Math.round((row.correct / row.total) * 100)}%`
+														: "—"
+												}
+											/>
+											<Stat label="Fooled" value={row.foolPoints} />
+											<Stat label="Streak" value={row.currentStreak} />
+										</div>
+									</li>
+								))}
+							</ul>
+						</div>
+					</>
+				)}
 			</main>
 		</div>
 	);
