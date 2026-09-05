@@ -64,8 +64,17 @@ export const auth = betterAuth({
 			enabled: true,
 			updateEmailWithoutVerification: true,
 		},
+		// Deliberately disabled. Better Auth's deleteUser issues a hard DELETE on
+		// the user row, and the cascades run
+		//   user → game (owner_id) → every member, round, guess and invite
+		//   user → bank_song → round → guess
+		// so one person closing their account would erase rounds other people
+		// played and rooms other people were in, leaving their stat_snapshot
+		// counters pointing at rows that no longer exist.
+		//
+		// DELETE /api/account does it properly — see lib/account.ts.
 		deleteUser: {
-			enabled: true,
+			enabled: false,
 		},
 	},
 	session: {

@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { and, asc, count, eq, lt } from "drizzle-orm";
+import { and, asc, count, eq, lt, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { bankSong } from "@/lib/db/bank";
 import { gameMember } from "@/lib/db/game";
@@ -95,6 +95,30 @@ export async function drawForGame(
 		const songs = byMember.get(memberId) as string[];
 		const bankSongId = songs[Math.floor(rng() * songs.length)];
 
+		// Claim the song before using it. A bank is global, so one person can be
+		// drawable in several rooms at once; the read above ran at READ COMMITTED,
+		// which means two games drawing concurrently could both see the same song
+		// as `banked` and both build a round on it — the same track playing in two
+		// rooms on the same day, which is precisely what "played songs are spent
+		// everywhere" exists to prevent. The unique (game_id, round_date) index
+		// doesn't help: those are different games, so both inserts are legal.
+		//
+		// FOR UPDATE serialises the second draw behind the first, and re-reading
+		// the status inside the lock is what makes it a claim rather than a guess.
+		const [claimed] = await tx
+			.select({ status: bankSong.status })
+			.from(bankSong)
+			.where(eq(bankSong.id, bankSongId))
+			.for("update")
+			.limit(1);
+
+		// Another game took it while we were choosing. Treating this as dry is
+		// deliberate: retrying here would re-run the same seed and pick the same
+		// song, and the job is idempotent, so the next run settles it.
+		if (claimed?.status !== "banked") {
+			return { status: "dry" } as const;
+		}
+
 		const [created] = await tx
 			.insert(round)
 			.values({ gameId, roundDate, bankSongId })
@@ -151,79 +175,133 @@ export async function closeRoundsBefore(today: string) {
 		// away.
 		.orderBy(asc(round.roundDate));
 
+	// Grouped by game, because streak continuity is per (game, user): only the
+	// order *within* a game matters, and different games can settle in parallel.
+	const byGame = new Map<string, typeof stale>();
+	for (const staleRound of stale) {
+		byGame.set(staleRound.gameId, [
+			...(byGame.get(staleRound.gameId) ?? []),
+			staleRound,
+		]);
+	}
+
 	let closed = 0;
 
-	for (const staleRound of stale) {
+	for (const [gameId, gameRounds] of byGame) {
+		// One transaction per game, holding an advisory lock for its duration.
+		//
+		// Without it two runs of this job interleave: the `stale` select above
+		// happens outside any transaction, so both see the same rounds as open and
+		// both apply `currentStreak + 1`. The 60s retry in fly-cron.mjs against a
+		// 30s request timeout makes that reachable today, before any admin tool
+		// exists. `pg_advisory_xact_lock` and not the session-scoped variant
+		// because session locks don't survive Supabase's transaction pooler.
+		//
+		// The lock spans all of this game's rounds rather than one each, because
+		// settling day 2 before day 1 has committed breaks every streak that spans
+		// them — and since each round flips to `closed` in the same transaction, a
+		// wrong settlement can never be replayed away.
 		await db.transaction(async (tx) => {
-			const members = await tx
-				.select({ id: gameMember.id, userId: gameMember.userId })
-				.from(gameMember)
-				.where(
-					and(
-						eq(gameMember.gameId, staleRound.gameId),
-						eq(gameMember.status, "active"),
-					),
-				);
+			await tx.execute(
+				sql`select pg_advisory_xact_lock(hashtext(${`songdraw:close:${gameId}`}))`,
+			);
 
-			const guessers = await tx
-				.select({ userId: guess.guesserUserId })
-				.from(guess)
-				.where(eq(guess.roundId, staleRound.id));
-			const played = new Set(guessers.map((row) => row.userId));
-
-			const yesterday = previousDate(staleRound.roundDate);
-
-			for (const member of members) {
-				const didPlay =
-					played.has(member.userId) ||
-					member.userId === staleRound.submitterUserId;
-
-				const [stat] = await tx
-					.select()
-					.from(statSnapshot)
-					.where(
-						and(
-							eq(statSnapshot.gameId, staleRound.gameId),
-							eq(statSnapshot.userId, member.userId),
-						),
-					)
+			for (const staleRound of gameRounds) {
+				// Re-read under the lock. Another run may have settled this round
+				// between our select and acquiring the lock; the outer `status =
+				// 'open'` filter was evaluated before either was true.
+				const [stillOpen] = await tx
+					.select({ id: round.id })
+					.from(round)
+					.where(and(eq(round.id, staleRound.id), eq(round.status, "open")))
+					.for("update")
 					.limit(1);
+				if (!stillOpen) continue;
 
-				// A streak continues only if the previous day was also played;
-				// any gap restarts it at 1.
-				const continues = stat?.lastPlayedDate === yesterday;
-				const currentStreak = didPlay
-					? continues
-						? stat.currentStreak + 1
-						: 1
-					: 0;
-				const bestStreak = Math.max(stat?.bestStreak ?? 0, currentStreak);
-				const lastPlayedDate = didPlay
-					? staleRound.roundDate
-					: (stat?.lastPlayedDate ?? null);
-
-				await tx
-					.insert(statSnapshot)
-					.values({
-						gameId: staleRound.gameId,
-						userId: member.userId,
-						currentStreak,
-						bestStreak,
-						lastPlayedDate,
-					})
-					.onConflictDoUpdate({
-						target: [statSnapshot.gameId, statSnapshot.userId],
-						set: { currentStreak, bestStreak, lastPlayedDate },
-					});
+				await settleRound(tx, staleRound);
+				closed += 1;
 			}
-
-			await tx
-				.update(round)
-				.set({ status: "closed" })
-				.where(eq(round.id, staleRound.id));
 		});
-		closed += 1;
 	}
 
 	return closed;
+}
+
+type StaleRound = {
+	id: string;
+	gameId: string;
+	roundDate: string;
+	submitterUserId: string;
+};
+
+/** Settles one round's streaks and closes it. Caller holds the game's lock. */
+async function settleRound(
+	tx: Parameters<Parameters<typeof db.transaction>[0]>[0],
+	staleRound: StaleRound,
+) {
+	const members = await tx
+		.select({ id: gameMember.id, userId: gameMember.userId })
+		.from(gameMember)
+		.where(
+			and(
+				eq(gameMember.gameId, staleRound.gameId),
+				eq(gameMember.status, "active"),
+			),
+		);
+
+	const guessers = await tx
+		.select({ userId: guess.guesserUserId })
+		.from(guess)
+		.where(eq(guess.roundId, staleRound.id));
+	const played = new Set(guessers.map((row) => row.userId));
+
+	const yesterday = previousDate(staleRound.roundDate);
+
+	for (const member of members) {
+		const didPlay =
+			played.has(member.userId) || member.userId === staleRound.submitterUserId;
+
+		const [stat] = await tx
+			.select()
+			.from(statSnapshot)
+			.where(
+				and(
+					eq(statSnapshot.gameId, staleRound.gameId),
+					eq(statSnapshot.userId, member.userId),
+				),
+			)
+			.limit(1);
+
+		// A streak continues only if the previous day was also played;
+		// any gap restarts it at 1.
+		const continues = stat?.lastPlayedDate === yesterday;
+		const currentStreak = didPlay
+			? continues
+				? stat.currentStreak + 1
+				: 1
+			: 0;
+		const bestStreak = Math.max(stat?.bestStreak ?? 0, currentStreak);
+		const lastPlayedDate = didPlay
+			? staleRound.roundDate
+			: (stat?.lastPlayedDate ?? null);
+
+		await tx
+			.insert(statSnapshot)
+			.values({
+				gameId: staleRound.gameId,
+				userId: member.userId,
+				currentStreak,
+				bestStreak,
+				lastPlayedDate,
+			})
+			.onConflictDoUpdate({
+				target: [statSnapshot.gameId, statSnapshot.userId],
+				set: { currentStreak, bestStreak, lastPlayedDate },
+			});
+	}
+
+	await tx
+		.update(round)
+		.set({ status: "closed" })
+		.where(eq(round.id, staleRound.id));
 }

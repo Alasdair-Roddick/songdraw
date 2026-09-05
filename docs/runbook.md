@@ -56,6 +56,21 @@ git push        # release_command applies it before any Machine takes traffic
 
 Never run `drizzle-kit push --force` against production.
 
+**If the migration adds a table, hand-add a grant to it.** The admin app reads
+this database through `songdraw_admin_ro` (`ops/admin-read-role.sql`), which is
+deliberately *not* covered by `ALTER DEFAULT PRIVILEGES` — in a database where
+answer secrecy has no enforcement, auto-granting every future table is a
+fail-open rule. So append to the generated `drizzle/NNNN_*.sql`:
+
+```sql
+GRANT SELECT ON public.<new_table> TO songdraw_admin_ro;
+```
+
+Omit it and the admin app fails with `permission denied for table …`, which is
+the intended behaviour: loud, one line to fix, and somebody had to decide the
+table was safe to expose. If it holds anything secret — a token, a hash, an
+unrevealed answer — grant specific columns, or nothing at all.
+
 ## Deploy checklist
 
 1. Set every value in `.env`; generate `CRON_TOKEN` and
