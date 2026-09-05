@@ -1,5 +1,26 @@
 # SongDraw Style Guide
 
+> **MIGRATION IN PROGRESS — analog film restyle.**
+> Surface treatment is now token-driven. Do **not** write `border-foreground`,
+> `rounded-none`, or a literal `shadow-[Npx_Npx_0_0_…]` in new code — those are
+> the values being replaced. Use instead:
+>
+> | Instead of | Use |
+> |---|---|
+> | `border-2 border-foreground` | `border-2 border-rule` |
+> | a border that outlines an **interactive control** | `border-rule-strong` |
+> | `divide-y-2 divide-foreground` | `divide-y-2 divide-rule` |
+> | `rounded-none` | `rounded-(--radius-frame)` |
+> | `shadow-[6px_6px_0_0_var(--color-foreground)]` | `shadow-(--shadow-lift-lg)` |
+> | `shadow-[4px_4px_0_0_…]` / `[3px…]` | `shadow-(--shadow-lift)` / `-sm` |
+>
+> The two rule tokens are not interchangeable. WCAG 1.4.11 requires 3:1 for a
+> boundary that identifies a control and asks nothing of a decorative divider,
+> so `--rule` is free to go soft while `--rule-strong` is not.
+>
+> The rest of this document still describes the *current* brutalist look and is
+> rewritten when the palette flips.
+
 Brutalist, light-mode-first, Spotify-inspired energy. Flat surfaces, hard 2px
 rules, one loud accent. Built on shadcn components — restyle via `className`,
 don't fork components unless the change is global.

@@ -121,7 +121,7 @@ export function Landing() {
 			<section className="mx-auto w-full max-w-4xl px-4 py-14 sm:px-6 sm:py-16">
 				<motion.div
 					{...reveal}
-					className="grid divide-y-2 divide-foreground border-2 border-foreground shadow-[6px_6px_0_0_var(--color-foreground)] sm:grid-cols-3 sm:divide-x-2 sm:divide-y-0"
+					className="grid divide-y-2 divide-rule border-2 border-rule shadow-(--shadow-lift-lg) sm:grid-cols-3 sm:divide-x-2 sm:divide-y-0"
 				>
 					{STEPS.map((step) => (
 						<div
@@ -148,7 +148,7 @@ export function Landing() {
 					<p className="mt-2 font-display text-3xl tracking-wide uppercase">
 						Just me and a game I made.
 					</p>
-					<div className="mt-6 grid divide-y-2 divide-foreground border-2 border-foreground sm:grid-cols-3 sm:divide-x-2 sm:divide-y-0">
+					<div className="mt-6 grid divide-y-2 divide-rule border-2 border-rule sm:grid-cols-3 sm:divide-x-2 sm:divide-y-0">
 						{PROMISES.map((promise) => (
 							<div key={promise.label} className="flex flex-col gap-1 p-6">
 								<p className="font-bold">{promise.label}</p>
@@ -163,7 +163,7 @@ export function Landing() {
 
 			{/* The page previously ran out without asking again — by the time you'd
 			    read the promises the only CTA was a full screen behind you. */}
-			<section className="border-y-2 border-foreground bg-brand text-brand-foreground">
+			<section className="border-y-2 border-rule bg-brand text-brand-foreground">
 				<motion.div
 					{...reveal}
 					className="mx-auto flex w-full max-w-4xl flex-col gap-5 px-4 py-12 sm:flex-row sm:items-center sm:justify-between sm:px-6"
@@ -175,7 +175,7 @@ export function Landing() {
 					</p>
 					<Button
 						asChild
-						className="h-12 shrink-0 rounded-full border-2 border-foreground bg-background px-8 text-base text-foreground hover:bg-foreground hover:text-background"
+						className="h-12 shrink-0 rounded-full border-2 border-rule bg-background px-8 text-base text-foreground hover:bg-foreground hover:text-background"
 					>
 						<Link href="/signup">Sign up</Link>
 					</Button>

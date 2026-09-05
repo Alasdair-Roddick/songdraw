@@ -33,7 +33,7 @@ export function NotificationBell({ channel }: { channel: string | null }) {
 				>
 					<BellIcon />
 					{invites.length > 0 && (
-						<span className="absolute -top-0.5 -right-0.5 flex h-4 min-w-4 items-center justify-center rounded-full border border-foreground bg-brand px-1 font-mono text-[10px] font-bold text-brand-foreground tabular-nums">
+						<span className="absolute -top-0.5 -right-0.5 flex h-4 min-w-4 items-center justify-center rounded-full border border-rule bg-brand px-1 font-mono text-[10px] font-bold text-brand-foreground tabular-nums">
 							{invites.length}
 						</span>
 					)}
@@ -41,9 +41,9 @@ export function NotificationBell({ channel }: { channel: string | null }) {
 			</PopoverTrigger>
 			<PopoverContent
 				align="end"
-				className="w-80 rounded-none border-2 border-foreground p-0 shadow-[4px_4px_0_0_var(--color-foreground)]"
+				className="w-80 rounded-(--radius-frame) border-2 border-rule p-0 shadow-(--shadow-lift)"
 			>
-				<p className="border-b-2 border-foreground px-3 py-2 font-mono text-xs font-semibold tracking-widest uppercase text-muted-foreground">
+				<p className="border-b-2 border-rule px-3 py-2 font-mono text-xs font-semibold tracking-widest uppercase text-muted-foreground">
 					Invites
 				</p>
 				{invites.length === 0 ? (
@@ -51,7 +51,7 @@ export function NotificationBell({ channel }: { channel: string | null }) {
 						Nothing pending.
 					</p>
 				) : (
-					<ul className="divide-y-2 divide-foreground">
+					<ul className="divide-y-2 divide-rule">
 						{invites.map((invite) => (
 							<li key={invite.id} className="flex flex-col gap-3 p-3">
 								<div className="flex items-center gap-2.5">

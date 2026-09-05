@@ -71,14 +71,14 @@ export default async function RoomsPage() {
 				</div>
 
 				{games.length === 0 ? (
-					<div className="flex flex-col items-center gap-1 border-2 border-foreground p-10 text-center">
+					<div className="flex flex-col items-center gap-1 border-2 border-rule p-10 text-center">
 						<p className="font-bold tracking-tight">No rooms yet</p>
 						<p className="font-mono text-sm text-muted-foreground">
 							Create one, then invite your friends by name.
 						</p>
 					</div>
 				) : (
-					<ul className="divide-y-2 divide-foreground border-2 border-foreground">
+					<ul className="divide-y-2 divide-rule border-2 border-rule">
 						{games.map(({ game: g, role }) => {
 							const members = memberCount.get(g.id) ?? 1;
 							const needed = MIN_MEMBERS - members;

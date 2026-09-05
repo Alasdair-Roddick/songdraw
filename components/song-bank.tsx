@@ -141,7 +141,7 @@ export function SongBank({ channels }: { channels: string[] }) {
 			/>
 
 			{songs.length === 0 ? (
-				<div className="flex flex-col items-center gap-1 border-2 border-foreground p-10 text-center">
+				<div className="flex flex-col items-center gap-1 border-2 border-rule p-10 text-center">
 					<MusicIcon className="mb-1 size-5 text-muted-foreground" />
 					<p className="font-bold tracking-tight">Nothing banked yet</p>
 					<p className="font-mono text-sm text-muted-foreground">
@@ -159,9 +159,9 @@ export function SongBank({ channels }: { channels: string[] }) {
 								layout
 								exit={{ opacity: 0, scale: 0.9 }}
 								transition={{ type: "spring", stiffness: 400, damping: 22 }}
-								className="group relative flex min-w-0 flex-col border-2 border-foreground"
+								className="group relative flex min-w-0 flex-col border-2 border-rule"
 							>
-								<div className="relative aspect-square border-b-2 border-foreground bg-muted">
+								<div className="relative aspect-square border-b-2 border-rule bg-muted">
 									{song.artworkUrl ? (
 										// biome-ignore lint/performance/noImgElement: remote iTunes artwork, no next/image benefit
 										<img
@@ -187,7 +187,7 @@ export function SongBank({ channels }: { channels: string[] }) {
 											data-playing={playingId === song.id}
 											className="absolute inset-0 flex items-center justify-center opacity-0 transition-all group-hover:bg-foreground/40 group-hover:opacity-100 focus-visible:bg-foreground/40 focus-visible:opacity-100 data-[playing=true]:bg-foreground/40 data-[playing=true]:opacity-100"
 										>
-											<span className="flex size-10 items-center justify-center rounded-full border-2 border-foreground bg-brand text-brand-foreground">
+											<span className="flex size-10 items-center justify-center rounded-full border-2 border-rule bg-brand text-brand-foreground">
 												{playingId === song.id ? (
 													<PauseIcon className="size-4" />
 												) : (
@@ -204,7 +204,7 @@ export function SongBank({ channels }: { channels: string[] }) {
 										aria-label={`Remove ${song.title}`}
 										disabled={removing === song.id}
 										onClick={() => remove(song)}
-										className="absolute top-1 right-1 border-2 border-foreground bg-background opacity-100 transition-opacity md:opacity-0 md:group-hover:opacity-100 focus-visible:opacity-100"
+										className="absolute top-1 right-1 border-2 border-rule bg-background opacity-100 transition-opacity md:opacity-0 md:group-hover:opacity-100 focus-visible:opacity-100"
 									>
 										<XIcon />
 									</Button>

@@ -112,7 +112,7 @@ export function MemberList({
 
 	return (
 		<>
-			<ul className="divide-y-2 divide-foreground border-2 border-foreground">
+			<ul className="divide-y-2 divide-rule border-2 border-rule">
 				{members.map((member) => {
 					const isSelf = member.user.id === viewerId;
 					const isOwner = member.role === "owner";
@@ -169,7 +169,7 @@ export function MemberList({
 										</DropdownMenuTrigger>
 										<DropdownMenuContent
 											align="end"
-											className="rounded-none border-2 border-foreground"
+											className="rounded-(--radius-frame) border-2 border-rule"
 										>
 											{canManage && (
 												<>
@@ -214,7 +214,7 @@ export function MemberList({
 				open={confirm !== null}
 				onOpenChange={(open) => !open && setConfirm(null)}
 			>
-				<AlertDialogContent className="rounded-none border-2 border-foreground">
+				<AlertDialogContent className="rounded-(--radius-frame) border-2 border-rule">
 					{confirm && (
 						<>
 							<AlertDialogHeader>

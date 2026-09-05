@@ -17,7 +17,7 @@ export function PoolHealth({
 			<h2 className="font-mono text-xs font-semibold tracking-widest uppercase text-muted-foreground">
 				Pool health
 			</h2>
-			<div className="flex flex-col gap-3 border-2 border-foreground p-4 sm:flex-row sm:items-center sm:justify-between">
+			<div className="flex flex-col gap-3 border-2 border-rule p-4 sm:flex-row sm:items-center sm:justify-between">
 				<div className="flex items-start gap-3">
 					{needsSongs ? (
 						<CircleAlertIcon className="mt-0.5 size-5 text-brand" />

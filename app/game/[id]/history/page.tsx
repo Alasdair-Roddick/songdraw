@@ -96,13 +96,13 @@ export default async function HistoryPage({
 					</h1>
 				</div>
 				{rounds.length === 0 ? (
-					<p className="border-2 border-foreground p-6 font-mono text-sm text-muted-foreground">
+					<p className="border-2 border-rule p-6 font-mono text-sm text-muted-foreground">
 						Past rounds will appear here after the first day closes.
 					</p>
 				) : (
 					<ol className="flex flex-col gap-4">
 						{rounds.map((item) => (
-							<li key={item.id} className="border-2 border-foreground p-4">
+							<li key={item.id} className="border-2 border-rule p-4">
 								<div className="flex min-w-0 gap-3">
 									{item.artworkUrl && (
 										// biome-ignore lint/performance/noImgElement: remote iTunes artwork, no next/image benefit
@@ -122,7 +122,7 @@ export default async function HistoryPage({
 										</p>
 									</div>
 								</div>
-								<ul className="mt-4 flex flex-col gap-2 border-t-2 border-foreground pt-3">
+								<ul className="mt-4 flex flex-col gap-2 border-t-2 border-rule pt-3">
 									{(byRound.get(item.id) ?? []).map((entry) => (
 										<li
 											key={`${item.id}-${entry.name}`}

@@ -59,7 +59,7 @@ function ResetPasswordForm() {
 
 	if (!token || callbackError) {
 		return (
-			<Card className="w-full rounded-none border-2 border-foreground shadow-[6px_6px_0_0_var(--color-foreground)] ring-0">
+			<Card className="w-full rounded-(--radius-frame) border-2 border-rule shadow-(--shadow-lift-lg) ring-0">
 				<CardHeader>
 					<CardTitle className="flex items-center gap-2 text-xl font-display tracking-wide uppercase">
 						<TriangleAlertIcon className="size-5" /> Link expired
@@ -70,7 +70,7 @@ function ResetPasswordForm() {
 						Reset links work once and last an hour. Ask for a fresh one.
 					</p>
 				</CardContent>
-				<CardFooter className="border-t-2 border-foreground">
+				<CardFooter className="border-t-2 border-rule">
 					<Button
 						asChild
 						variant="brand"
@@ -84,7 +84,7 @@ function ResetPasswordForm() {
 	}
 
 	return (
-		<Card className="w-full rounded-none border-2 border-foreground shadow-[6px_6px_0_0_var(--color-foreground)] ring-0">
+		<Card className="w-full rounded-(--radius-frame) border-2 border-rule shadow-(--shadow-lift-lg) ring-0">
 			<CardHeader>
 				<CardTitle className="text-xl font-display tracking-wide uppercase">
 					New password

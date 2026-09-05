@@ -257,7 +257,7 @@ function ProgressRail({
 						key={entry.gameId}
 						animate={{ scale: isActive ? 1.35 : 1 }}
 						transition={{ type: "spring", stiffness: 400, damping: 24 }}
-						className={`size-2 rounded-full border-2 border-foreground ${
+						className={`size-2 rounded-full border-2 border-rule ${
 							needsGuess
 								? "bg-background"
 								: isActive
@@ -447,7 +447,7 @@ function GuessBody({
 									whileTap={{ scale: 0.97 }}
 									onClick={() => setPicked(member.id)}
 									aria-pressed={isPicked}
-									className={`flex w-full items-center gap-2 border-2 border-foreground p-2 text-left transition-colors ${
+									className={`flex w-full items-center gap-2 border-2 border-rule p-2 text-left transition-colors ${
 										isPicked
 											? "bg-brand text-brand-foreground"
 											: "hover:bg-muted"
@@ -530,7 +530,7 @@ function LockedBody({
 	round: Extract<FeedEntry["round"], { state: "locked" }>;
 }) {
 	return (
-		<div className="flex flex-col items-center gap-2 border-2 border-foreground p-4">
+		<div className="flex flex-col items-center gap-2 border-2 border-rule p-4">
 			<p className="font-mono text-xs font-semibold tracking-widest uppercase text-muted-foreground">
 				Locked in
 			</p>
@@ -574,7 +574,7 @@ function RevealedBody({
 					? { type: "spring", stiffness: 260, damping: 18 }
 					: { duration: 0.2 }
 			}
-			className="relative flex flex-col gap-3 border-2 border-foreground p-4"
+			className="relative flex flex-col gap-3 border-2 border-rule p-4"
 		>
 			{justRevealed && <RevealBurst />}
 			<div className="flex items-center gap-2">
@@ -682,7 +682,7 @@ function SubmitterBody({
 	round: Extract<FeedEntry["round"], { state: "submitter" }>;
 }) {
 	return (
-		<div className="flex flex-col gap-3 border-2 border-foreground p-4">
+		<div className="flex flex-col gap-3 border-2 border-rule p-4">
 			<div className="flex items-center justify-between gap-3">
 				<p className="font-display tracking-wide uppercase">Your song 👀</p>
 				<motion.span
@@ -757,7 +757,7 @@ function DonePanel({ remaining, index }: { remaining: number; index: number }) {
 						repeat: Number.POSITIVE_INFINITY,
 						repeatDelay: 1.5,
 					}}
-					className="grid size-16 place-items-center rounded-full border-2 border-foreground bg-brand text-brand-foreground motion-reduce:animate-none"
+					className="grid size-16 place-items-center rounded-full border-2 border-rule bg-brand text-brand-foreground motion-reduce:animate-none"
 				>
 					<SparklesIcon className="size-7" />
 				</motion.span>

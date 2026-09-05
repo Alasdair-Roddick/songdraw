@@ -52,7 +52,7 @@ export function UserMenu({
 				</DropdownMenuTrigger>
 				<DropdownMenuContent
 					align="end"
-					className="rounded-none border-2 border-foreground"
+					className="rounded-(--radius-frame) border-2 border-rule"
 				>
 					<DropdownMenuItem onSelect={() => setSettingsOpen(true)}>
 						Settings

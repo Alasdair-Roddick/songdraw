@@ -14,9 +14,11 @@ const root = join(import.meta.dirname, "..");
 // Only the fill attributes; the file also names the old values in a comment
 // explaining the drift, and those must not count as a match.
 const iconFills = new Set(
-	[...readFileSync(join(root, "app/icon.svg"), "utf8").matchAll(/fill="(#[0-9a-fA-F]{3,6})"/g)].map(
-		(m) => m[1].toLowerCase(),
-	),
+	[
+		...readFileSync(join(root, "app/icon.svg"), "utf8").matchAll(
+			/fill="(#[0-9a-fA-F]{3,6})"/g,
+		),
+	].map((m) => m[1].toLowerCase()),
 );
 
 test("the favicon uses the brand yellow, not a near-miss", () => {
@@ -35,7 +37,11 @@ test("the favicon tile uses the brand-mark colour", () => {
 
 test("the social image reads the shared palette rather than its own literals", () => {
 	const source = readFileSync(join(root, "app/social-image.tsx"), "utf8");
-	assert.match(source, /BRAND_HEX/, "app/social-image.tsx should import BRAND_HEX");
+	assert.match(
+		source,
+		/BRAND_HEX/,
+		"app/social-image.tsx should import BRAND_HEX",
+	);
 	// Guard against someone reintroducing a local copy of the palette.
 	const literals = source.match(/^const (brand|ink|paper) = "#/gm);
 	assert.equal(literals, null, "social-image.tsx redeclares a colour literal");

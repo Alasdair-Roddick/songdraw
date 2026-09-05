@@ -18,6 +18,13 @@
 	   Tailwind's default ui-monospace stack. The label and numeral register of
 	   the whole app was a system font nobody chose. */
 	--font-mono: var(--font-geist-mono);
+	/* Exposed as colour utilities (`border-rule`, `divide-rule`) so
+	   tailwind-merge still classifies them — lib/utils.ts uses a bare
+	   twMerge, so a custom @utility name would be invisible to its conflict
+	   groups and `cn()` would resolve by stylesheet order instead of class
+	   order. */
+	--color-rule: var(--rule);
+	--color-rule-strong: var(--rule-strong);
 	--color-brand: var(--brand);
 	--color-brand-foreground: var(--brand-foreground);
 	--color-sidebar-ring: var(--sidebar-ring);
@@ -61,6 +68,27 @@
 }
 
 :root {
+	/* ── Surface language ──────────────────────────────────────────────────
+	   The brutalist look was carried by three things no token controlled: a
+	   hardcoded `border-foreground` in 57 places, twelve literal offset
+	   shadows, and `rounded-none`. These give each of them a name, so the
+	   whole surface treatment can change in this file rather than across 27.
+
+	   Seeded here at exactly today's values — introducing the indirection is
+	   deliberately a no-op, so the visual change lands as one revertable
+	   commit afterwards.
+
+	   Two rules, not one, and the split matters: WCAG 1.4.11 wants 3:1 for a
+	   boundary that identifies a control, and asks nothing of a decorative
+	   divider. Softening every border to a single soft value would quietly
+	   destroy input affordance. */
+	--rule: var(--foreground);
+	--rule-strong: var(--foreground);
+	--radius-frame: 0px;
+	--shadow-lift-lg: 6px 6px 0 0 var(--color-foreground);
+	--shadow-lift: 4px 4px 0 0 var(--color-foreground);
+	--shadow-lift-sm: 3px 3px 0 0 var(--color-foreground);
+
 	--brand: oklch(0.85 0.18 90);
 	--brand-foreground: oklch(0.145 0 0);
 	--background: oklch(1 0 0);

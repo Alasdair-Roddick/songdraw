@@ -100,7 +100,7 @@ export function InviteMemberDialog({ gameId }: { gameId: string }) {
 					Invite
 				</Button>
 			</DialogTrigger>
-			<DialogContent className="rounded-none border-2 border-foreground">
+			<DialogContent className="rounded-(--radius-frame) border-2 border-rule">
 				<DialogHeader>
 					<DialogTitle>Invite someone</DialogTitle>
 					<DialogDescription>
@@ -122,7 +122,7 @@ export function InviteMemberDialog({ gameId }: { gameId: string }) {
 				{query.trim().length >= 2 && (
 					// min-w-0 so a long display name truncates rather than widening
 					// the list past the dialog — see the note in song-search.tsx.
-					<div className="min-w-0 border-2 border-foreground">
+					<div className="min-w-0 border-2 border-rule">
 						{searching && results.length === 0 ? (
 							<p className="p-4 text-center font-mono text-sm text-muted-foreground">
 								Searching…
@@ -132,7 +132,7 @@ export function InviteMemberDialog({ gameId }: { gameId: string }) {
 								Nobody by that name.
 							</p>
 						) : (
-							<ul className="divide-y-2 divide-foreground">
+							<ul className="divide-y-2 divide-rule">
 								{results.map((person) => (
 									<li
 										key={person.id}

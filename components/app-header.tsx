@@ -15,7 +15,7 @@ export async function AppHeader() {
 	const channel = userChannel(session.user.id);
 
 	return (
-		<header className="border-b-2 border-foreground">
+		<header className="border-b-2 border-rule">
 			<div className="mx-auto flex w-full max-w-4xl items-center justify-between px-6 py-4">
 				<Link href="/home" className="flex items-center gap-2.5">
 					<EqMark className="h-9 w-9 px-2 py-1.5" />

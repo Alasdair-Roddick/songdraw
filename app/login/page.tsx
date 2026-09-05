@@ -43,7 +43,7 @@ export default function LoginPage() {
 
 	return (
 		<AuthShell>
-			<Card className="w-full rounded-none border-2 border-foreground shadow-[6px_6px_0_0_var(--color-foreground)] ring-0">
+			<Card className="w-full rounded-(--radius-frame) border-2 border-rule shadow-(--shadow-lift-lg) ring-0">
 				<CardHeader>
 					<CardTitle className="text-xl font-display tracking-wide uppercase">
 						Welcome back
@@ -106,7 +106,7 @@ export default function LoginPage() {
 						</Button>
 					</form>
 				</CardContent>
-				<CardFooter className="justify-center gap-1 border-t-2 border-foreground text-sm text-muted-foreground">
+				<CardFooter className="justify-center gap-1 border-t-2 border-rule text-sm text-muted-foreground">
 					New here?
 					<Link
 						href="/signup"

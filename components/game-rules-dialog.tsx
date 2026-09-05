@@ -24,7 +24,7 @@ export function GameRulesDialog() {
 					<CircleHelpIcon /> How it works
 				</Button>
 			</DialogTrigger>
-			<DialogContent className="max-h-[85dvh] overflow-y-auto border-2 border-foreground sm:max-w-lg">
+			<DialogContent className="max-h-[85dvh] overflow-y-auto border-2 border-rule sm:max-w-lg">
 				<DialogHeader>
 					<DialogTitle>How SongDraw works</DialogTitle>
 					<DialogDescription>

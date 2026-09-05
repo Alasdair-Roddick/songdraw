@@ -97,14 +97,14 @@ export default async function LeaderboardPage({
 					</h1>
 				</div>
 				<nav
-					className="flex w-full border-2 border-foreground sm:w-fit"
+					className="flex w-full border-2 border-rule sm:w-fit"
 					aria-label="Leaderboard period"
 				>
 					{periods.map((option) => (
 						<Link
 							key={option.value}
 							href={`/game/${id}/leaderboard?period=${option.value}`}
-							className={`flex-1 border-r-2 border-foreground px-3 py-3 text-center font-mono text-xs font-semibold uppercase last:border-r-0 sm:flex-none sm:py-2 ${
+							className={`flex-1 border-r-2 border-rule px-3 py-3 text-center font-mono text-xs font-semibold uppercase last:border-r-0 sm:flex-none sm:py-2 ${
 								period === option.value
 									? "bg-brand text-brand-foreground"
 									: "hover:bg-muted"
@@ -118,7 +118,7 @@ export default async function LeaderboardPage({
 					// Today's board is derived entirely from today's guesses, so while
 					// the round is live there is nothing to show that wouldn't name the
 					// submitter — a rising fool-point total is the answer.
-					<div className="flex flex-col gap-2 border-2 border-foreground p-6">
+					<div className="flex flex-col gap-2 border-2 border-rule p-6">
 						<p className="font-display text-2xl tracking-wide uppercase">
 							Locked until the reveal
 						</p>
@@ -134,9 +134,9 @@ export default async function LeaderboardPage({
 								Today's round isn't counted yet
 							</p>
 						)}
-						<div className="border-2 border-foreground">
+						<div className="border-2 border-rule">
 							<div
-								className={`hidden border-b-2 border-foreground px-3 py-2 font-mono text-xs tracking-widest uppercase text-muted-foreground ${COLUMNS}`}
+								className={`hidden border-b-2 border-rule px-3 py-2 font-mono text-xs tracking-widest uppercase text-muted-foreground ${COLUMNS}`}
 							>
 								<span>Player</span>
 								<span className="text-right">Points</span>
@@ -144,7 +144,7 @@ export default async function LeaderboardPage({
 								<span className="text-right">Fooled</span>
 								<span className="text-right">Streak</span>
 							</div>
-							<ul className="divide-y-2 divide-foreground">
+							<ul className="divide-y-2 divide-rule">
 								{rows.map((row, index) => (
 									<li
 										key={row.memberId}

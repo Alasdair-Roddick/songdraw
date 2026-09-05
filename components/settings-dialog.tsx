@@ -196,7 +196,7 @@ export function SettingsDialog({
 	return (
 		<Dialog open={open} onOpenChange={onOpenChange}>
 			<DialogContent
-				className="max-h-[85vh] overflow-y-auto rounded-none border-2 border-foreground sm:max-w-md"
+				className="max-h-[85vh] overflow-y-auto rounded-(--radius-frame) border-2 border-rule sm:max-w-md"
 				aria-describedby={undefined}
 			>
 				<DialogHeader>
@@ -367,7 +367,7 @@ export function SettingsDialog({
 									Delete account
 								</Button>
 							</AlertDialogTrigger>
-							<AlertDialogContent className="rounded-none border-2 border-foreground">
+							<AlertDialogContent className="rounded-(--radius-frame) border-2 border-rule">
 								<AlertDialogHeader>
 									<AlertDialogTitle>Delete your account?</AlertDialogTitle>
 									<AlertDialogDescription>
