@@ -1,8 +1,8 @@
 # SongDraw Style Guide
 
-Analog film. Warm paper, real grain, muted tone, halation instead of hard
-shadows. Light-mode-first with a darkroom. Built on shadcn components — restyle
-via `className`, don't fork components unless the change is global.
+Analog film. Warm paper, muted tone, halation instead of hard shadows.
+Light-mode-first with a darkroom. Built on shadcn components — restyle via
+`className`, don't fork components unless the change is global.
 
 ## Principles
 
@@ -12,8 +12,7 @@ via `className`, don't fork components unless the change is global.
 - **Depth comes from light, not from geometry.** Surfaces lift with halation —
   a contact shadow, a diffuse lift and a warm bloom. No hard offset shadows, no
   glassmorphism, no blur.
-- **Texture over decoration.** The grain does the work a border used to. Prefer
-  a tone change to a line.
+- **Tone over line.** Prefer a change in surface tone to drawing a border.
 - **Type does the talking.** Big, heavy, tight, sentence case.
 - **One accent.** Burnt amber for the primary action and highlights. Never two
   accent colours on one screen.
@@ -33,7 +32,6 @@ files:
 | `shadow-(--shadow-lift-lg)` | auth cards, key surfaces |
 | `shadow-(--shadow-lift)` | floating chrome — toasts, popovers, sticky bars |
 | `shadow-(--shadow-lift-sm)` | small controls |
-| `--grain-opacity` | set to `0` to kill the grain globally |
 
 The two rule tokens are **not interchangeable**. WCAG 1.4.11 requires 3:1 for a
 boundary that identifies a control and asks nothing of a decorative divider, so
@@ -125,9 +123,9 @@ noticed for months.
 
 These encode fixed bugs. Changing them reopens the bug.
 
-- **The grain lives in `body::after` in `globals.css`, nowhere else.** `<body>`
-  is a flex container; a real element there becomes a flex item and fights the
-  feed's scroller.
+- **`<body>` is a flex container.** Anything added there becomes a flex item and
+  fights the feed's `100dvh` scroller. Page-wide overlays belong in a
+  pseudo-element in `globals.css`, never as an element in `layout.tsx`.
 - **`components/round-feed.tsx` scroller** (`h-[100dvh] snap-y snap-mandatory
   overflow-y-scroll overscroll-y-contain`) — untouched.
 - **`Shell` uses `min-h-[100dvh]`, never `h-`.** A fixed height can't produce an
