@@ -11,7 +11,7 @@ export function GameInsights({ insights }: { insights: GameInsightsData }) {
 			</h2>
 			<div className="grid gap-3 sm:grid-cols-2">
 				{insights.mostFooledPair && (
-					<div className="flex gap-3 border-2 border-foreground p-4">
+					<div className="flex gap-3 border-2 border-rule p-4">
 						<BrainIcon className="mt-0.5 size-5 shrink-0 text-brand" />
 						<p className="text-sm leading-relaxed">
 							<span className="font-bold">
@@ -28,7 +28,7 @@ export function GameInsights({ insights }: { insights: GameInsightsData }) {
 					</div>
 				)}
 				{insights.hardestSong && (
-					<div className="flex gap-3 border-2 border-foreground p-4">
+					<div className="flex gap-3 border-2 border-rule p-4">
 						<SparklesIcon className="mt-0.5 size-5 shrink-0 text-brand" />
 						<p className="text-sm leading-relaxed">
 							Hardest so far:{" "}

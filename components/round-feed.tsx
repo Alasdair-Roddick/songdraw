@@ -257,7 +257,7 @@ function ProgressRail({
 						key={entry.gameId}
 						animate={{ scale: isActive ? 1.35 : 1 }}
 						transition={{ type: "spring", stiffness: 400, damping: 24 }}
-						className={`size-2 rounded-full border-2 border-foreground ${
+						className={`size-2 rounded-full border-2 border-rule ${
 							needsGuess
 								? "bg-background"
 								: isActive
@@ -360,8 +360,8 @@ function Panel({
 			/>
 
 			<div className="flex max-w-sm flex-col items-center gap-1 text-center">
-				{/* Stays on the sans: Bebas has no lowercase, and a song title is
-				    the artist's casing, not ours to flatten. */}
+				{/* Stays on the sans. Display type is for our words, not the
+				    artist's — a song title keeps whatever casing it shipped with. */}
 				<p className="text-xl font-bold tracking-tight">{round.track.title}</p>
 				<p className="font-mono text-sm text-muted-foreground">
 					{round.track.artist}
@@ -447,7 +447,7 @@ function GuessBody({
 									whileTap={{ scale: 0.97 }}
 									onClick={() => setPicked(member.id)}
 									aria-pressed={isPicked}
-									className={`flex w-full items-center gap-2 border-2 border-foreground p-2 text-left transition-colors ${
+									className={`flex w-full items-center gap-2 border-2 border-rule p-2 text-left transition-colors ${
 										isPicked
 											? "bg-brand text-brand-foreground"
 											: "hover:bg-muted"
@@ -530,7 +530,7 @@ function LockedBody({
 	round: Extract<FeedEntry["round"], { state: "locked" }>;
 }) {
 	return (
-		<div className="flex flex-col items-center gap-2 border-2 border-foreground p-4">
+		<div className="flex flex-col items-center gap-2 border-2 border-rule p-4">
 			<p className="font-mono text-xs font-semibold tracking-widest uppercase text-muted-foreground">
 				Locked in
 			</p>
@@ -574,7 +574,7 @@ function RevealedBody({
 					? { type: "spring", stiffness: 260, damping: 18 }
 					: { duration: 0.2 }
 			}
-			className="relative flex flex-col gap-3 border-2 border-foreground p-4"
+			className="relative flex flex-col gap-3 border-2 border-rule p-4"
 		>
 			{justRevealed && <RevealBurst />}
 			<div className="flex items-center gap-2">
@@ -597,7 +597,7 @@ function RevealedBody({
 				</span>
 				{/* Never showing a verdict to someone who didn't guess — missing the
 				    window isn't the same as being wrong. */}
-				<p className="text-lg font-display tracking-wide uppercase">
+				<p className="text-lg font-display font-extrabold tracking-tight">
 					{round.missed ? "Missed it" : round.correct ? "Got it" : "Nope"}
 				</p>
 				{round.points > 0 && (
@@ -682,9 +682,11 @@ function SubmitterBody({
 	round: Extract<FeedEntry["round"], { state: "submitter" }>;
 }) {
 	return (
-		<div className="flex flex-col gap-3 border-2 border-foreground p-4">
+		<div className="flex flex-col gap-3 border-2 border-rule p-4">
 			<div className="flex items-center justify-between gap-3">
-				<p className="font-display tracking-wide uppercase">Your song 👀</p>
+				<p className="font-display font-extrabold tracking-tight">
+					Your song 👀
+				</p>
 				<motion.span
 					key={round.fooled}
 					initial={{ scale: 1.3 }}
@@ -757,12 +759,12 @@ function DonePanel({ remaining, index }: { remaining: number; index: number }) {
 						repeat: Number.POSITIVE_INFINITY,
 						repeatDelay: 1.5,
 					}}
-					className="grid size-16 place-items-center rounded-full border-2 border-foreground bg-brand text-brand-foreground motion-reduce:animate-none"
+					className="grid size-16 place-items-center rounded-full border-2 border-rule bg-brand text-brand-foreground motion-reduce:animate-none"
 				>
 					<SparklesIcon className="size-7" />
 				</motion.span>
 
-				<h2 className="text-3xl font-display tracking-wide uppercase leading-[0.95]">
+				<h2 className="text-3xl font-display font-extrabold tracking-tight leading-[0.95]">
 					{done ? "All songs guessed" : `${remaining} still to guess`}
 				</h2>
 				<p className="max-w-xs font-mono text-sm text-muted-foreground">
@@ -790,7 +792,7 @@ function EmptyPanel() {
 	return (
 		<Shell index={0}>
 			<div className="flex flex-col items-center gap-3 text-center">
-				<h2 className="text-3xl font-display tracking-wide uppercase leading-[0.95]">
+				<h2 className="text-3xl font-display font-extrabold tracking-tight leading-[0.95]">
 					Nothing playing
 				</h2>
 				<p className="max-w-xs font-mono text-sm text-muted-foreground">

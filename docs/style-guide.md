@@ -1,18 +1,42 @@
 # SongDraw Style Guide
 
-Brutalist, light-mode-first, Spotify-inspired energy. Flat surfaces, hard 2px
-rules, one loud accent. Built on shadcn components — restyle via `className`,
-don't fork components unless the change is global.
+Analog film. Warm paper, muted tone, halation instead of hard shadows.
+Light-mode-first with a darkroom. Built on shadcn components — restyle via
+`className`, don't fork components unless the change is global.
 
 ## Principles
 
-- **Flat, not soft.** No gradients, no blur blobs, no soft drop shadows, no
-  glassmorphism. Depth comes from hard offset shadows only.
-- **Type does the talking.** Big, black, tight. Decoration is a border or a
-  brand-colored block behind a word — never gradient text.
-- **One accent.** Brand yellow for the primary action and highlights. Never
-  two accent colors on one screen.
+- **Warm, never neutral.** Nothing in the palette is a grey. Film isn't, and a
+  neutral grey next to these tokens reads as a bug. There is no `#ffffff` and
+  no `#000000` anywhere.
+- **Depth comes from light, not from geometry.** Surfaces lift with halation —
+  a contact shadow, a diffuse lift and a warm bloom. No hard offset shadows, no
+  glassmorphism, no blur.
+- **Tone over line.** Prefer a change in surface tone to drawing a border.
+- **Type does the talking.** Big, heavy, tight, sentence case.
+- **One accent.** Burnt amber for the primary action and highlights. Never two
+  accent colours on one screen.
 - **Mobile first.** Tap targets ≥44px (`h-11`/`h-12` for primary controls).
+
+## Tokens
+
+**Never hardcode a border colour, radius, or shadow again.** These exist so the
+whole surface treatment changes in `app/globals.css` rather than across 27
+files:
+
+| Token | Use |
+|---|---|
+| `border-rule` | decorative frames and dividers |
+| `border-rule-strong` | anything outlining an **interactive control** |
+| `rounded-(--radius-frame)` | card / dialog / frame corners |
+| `shadow-(--shadow-lift-lg)` | auth cards, key surfaces |
+| `shadow-(--shadow-lift)` | floating chrome — toasts, popovers, sticky bars |
+| `shadow-(--shadow-lift-sm)` | small controls |
+
+The two rule tokens are **not interchangeable**. WCAG 1.4.11 requires 3:1 for a
+boundary that identifies a control and asks nothing of a decorative divider, so
+`--rule` is free to go soft and `--rule-strong` is not. Collapsing them fails
+`tests/contrast.test.ts`.
 
 ## Color
 
@@ -21,59 +45,59 @@ Always use tokens, never raw hex/oklch in components:
 | Token | Use |
 |---|---|
 | `bg-brand` / `text-brand-foreground` | primary CTA, highlights, selected states |
-| `bg-primary` (near-black) | brand mark tile, solid emphasis |
-| `border-foreground` | all structural borders (always `border-2`) |
+| `bg-primary` | brand mark tile, solid emphasis |
+| `border-rule` / `border-rule-strong` | see above |
 | `text-muted-foreground` | secondary text |
 | `destructive` | errors, danger zone only |
 
-Brand is defined once in `app/globals.css` (`--brand`). Change it there, never
-inline.
+Contrast is enforced by `tests/contrast.test.ts`, which parses `globals.css`.
+If you retune a colour by eye and drop below the line, the build fails. That
+test exists because the old palette shipped a focus ring at 1.6:1 that nobody
+noticed for months.
 
 ## Typography
 
-- **Display / page titles:** `font-display tracking-wide uppercase` (hero adds
-  `leading-[0.95]`). The display face is **Bebas Neue** — condensed, caps-only,
-  one weight. `font-black` does nothing on it and `tracking-tighter`
-  over-condenses an already-narrow face, so neither belongs on display type any
-  more. Highlight one word with
+- **Display / page titles:** `font-display font-extrabold tracking-tight` (hero
+  adds `leading-[0.95]`). The face is **Bricolage Grotesque** — variable, with
+  optical-size corrections that read as hand-set rather than drawn on a grid.
+  **Sentence case, not uppercase.** Highlight one word with
   `bg-brand px-3 text-brand-foreground inline-block -rotate-1` (hero only).
-- **Never use `font-display` for body, labels, or anything a user types into.**
-  Bebas has no lowercase, so it silently destroys casing — song titles, display
-  names and emails all stay on the sans.
+- **Display type is for our words, not the user's.** Song titles, display names
+  and emails stay on the sans — they carry casing we don't own.
 - **Section eyebrows / labels:** `font-mono text-xs font-semibold
-  tracking-widest uppercase text-muted-foreground`.
-- **Meta text** (taglines, emails, descriptions, empty states): `font-mono
-  text-sm text-muted-foreground`.
+  tracking-widest uppercase text-muted-foreground`. Wide-tracked uppercase mono
+  is the darkroom idiom and does a lot of the analog work; use it freely.
+- **Meta text** (taglines, descriptions, empty states): `font-mono text-sm
+  text-muted-foreground`.
 - **Body:** default sans, `font-medium`/`font-bold` for emphasis.
 - **Card / dialog titles:** stay on `font-heading` (the sans) — they read as UI,
   not as posters, and often contain names.
 
 ## Borders, radius, shadows
 
-- Structural borders and dividers: `border-2 border-foreground`,
-  `divide-y-2 divide-foreground` (`sm:divide-x-2` in grids).
-- Radius: containers/cards/dialogs `rounded-none`; inputs `rounded-md`;
-  buttons and search inputs `rounded-full` (pills); album art square
-  (`rounded-none`); people avatars stay circles.
-- Shadows: only hard offsets on floating/key surfaces —
-  `shadow-[6px_6px_0_0_var(--color-foreground)]` (auth cards),
-  `shadow-[4px_4px_0_0_var(--color-foreground)]` (sticky bars). Nothing else.
+- Frames and dividers: `border-2 border-rule`, `divide-y-2 divide-rule`.
+- Control outlines: `border-rule-strong`.
+- Radius: frames use `rounded-(--radius-frame)` — prints are cut square, the
+  softness comes from tone. Inputs `rounded-md`; buttons and search inputs
+  `rounded-full`; album art square; people avatars stay circles.
+- Shadows: the three `--shadow-lift*` tokens only. Never a literal offset, and
+  never `filter: blur()` — a filter on a scroll-snap child creates a containing
+  block and can drop snap alignment in Safari.
 
 ## Component recipes
 
 - **Primary CTA:** `<Button variant="brand" className="h-12 rounded-full
-  text-base">` — yellow pill, bold dark text. One per view.
-- **Secondary:** `<Button variant="outline" className="rounded-full">` —
-  2px black outline pill, inverts to solid on hover.
-- **Card (auth/forms):** `<Card className="rounded-none border-2
-  border-foreground shadow-[6px_6px_0_0_var(--color-foreground)] ring-0">`.
-- **Dialogs:** `rounded-none border-2 border-foreground` on
+  text-base">` — amber pill, bold dark text. One per view.
+- **Secondary:** `<Button variant="outline" className="rounded-full">`.
+- **Card (auth/forms):** `<Card className="rounded-(--radius-frame) border-2
+  border-rule shadow-(--shadow-lift-lg)">`.
+- **Dialogs:** `rounded-(--radius-frame) border-2 border-rule` on
   `DialogContent`/`AlertDialogContent`.
-- **List of items** (search results, tables): one `border-2 border-foreground`
-  frame with `divide-y-2 divide-foreground` rows — not per-item cards.
-  Selected row: `bg-brand text-brand-foreground`.
-- **Inputs:** base `Input` is already `border-2 border-foreground rounded-md`
-  with a brand focus ring. Icon inputs: wrap in `relative`, icon absolute
+- **List of items** (search results, tables): one `border-2 border-rule` frame
+  with `divide-y-2 divide-rule` rows — not per-item cards. Selected row:
+  `bg-brand text-brand-foreground`.
+- **Inputs:** base `Input` is already `border-2 border-rule-strong rounded-md`
+  with a proper focus ring. Icon inputs: wrap in `relative`, icon absolute
   left, `pl-9`. Passwords: use `PasswordInput`.
 - **Brand mark:** `<EqMark />` + `<span className="text-lg font-bold
   tracking-tighter">SongDraw</span>`. Never recreate the bars inline.
@@ -84,15 +108,36 @@ inline.
 - Micro-interactions only: spring pops on selection
   (`type: "spring", stiffness: 400, damping: 22`), shake on errors
   (`x: [0, -6, 6, -3, 3, 0]`), step slides in multi-step forms.
+- **Reduced motion is handled globally** by `MotionConfig reducedMotion="user"`
+  in `components/providers.tsx`. You do not need `motion-reduce:` on a
+  `motion/react` animation — but you still do on a CSS `animate-*` class.
 - No entrance fade-ins on app screens. The marketing landing page is the one
-  exception — it reads as a poster, not a tool — and even there the hero plays
-  once on arrival and everything below reveals on scroll with
-  `viewport={{ once: true }}`, so nothing stays hidden from a reader who
-  doesn't scroll. Ambient motion is CSS-only:
-  the `equalize` keyframes (EQ bars), always with
-  `motion-reduce:animate-none`. No auto-scrolling tickers or carousels —
+  exception — it reads as a poster — and even there the hero plays once on
+  arrival and everything below reveals on scroll with `viewport={{ once: true }}`,
+  so nothing stays hidden from a reader who doesn't scroll.
+- Ambient motion is CSS-only: the `equalize` keyframes (EQ bars), always with
+  `motion-reduce:animate-none`. **No auto-scrolling tickers or carousels** —
   content that moves on its own can't be read at the reader's pace.
-- Client pages use `motion/react`; server pages get CSS animations only.
+
+## Invariants — do not change
+
+These encode fixed bugs. Changing them reopens the bug.
+
+- **`<body>` is a flex container.** Anything added there becomes a flex item and
+  fights the feed's `100dvh` scroller. Page-wide overlays belong in a
+  pseudo-element in `globals.css`, never as an element in `layout.tsx`.
+- **`components/round-feed.tsx` scroller** (`h-[100dvh] snap-y snap-mandatory
+  overflow-y-scroll overscroll-y-contain`) — untouched.
+- **`Shell` uses `min-h-[100dvh]`, never `h-`.** A fixed height can't produce an
+  oversized snap area, which was simultaneously the clipping bug and the
+  trapping bug (`02c8a02`, `9a8bebf`).
+- Never add `filter`, `backdrop-filter`, `transform`, `will-change`, `contain`
+  or `content-visibility` to the scroller or to `Shell`.
+- **Panel height is behaviour, not just layout.** A room shorter than the
+  viewport snap-locks; a taller one scrolls freely. Growing type or padding can
+  silently flip a room between the two — measure at 390×844.
+- Adding a key to `@theme` needs a dev-server restart; Tailwind caches the
+  resolved theme and will silently emit no utility until then.
 
 ## Voice
 

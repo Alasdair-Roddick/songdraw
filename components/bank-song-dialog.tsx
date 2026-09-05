@@ -59,15 +59,15 @@ export function BankSongDialog({
 			</DialogTrigger>
 			<DialogContent
 				showCloseButton={false}
-				className="top-auto bottom-0 left-0 h-[min(46rem,calc(100dvh-1rem))] max-w-none translate-x-0 translate-y-0 gap-0 overflow-hidden rounded-t-2xl border-2 border-foreground p-0 sm:top-1/2 sm:bottom-auto sm:left-1/2 sm:h-[min(46rem,calc(100dvh-3rem))] sm:max-w-2xl sm:-translate-x-1/2 sm:-translate-y-1/2 sm:rounded-xl"
+				className="top-auto bottom-0 left-0 h-[min(46rem,calc(100dvh-1rem))] max-w-none translate-x-0 translate-y-0 gap-0 overflow-hidden rounded-t-2xl border-2 border-rule p-0 sm:top-1/2 sm:bottom-auto sm:left-1/2 sm:h-[min(46rem,calc(100dvh-3rem))] sm:max-w-2xl sm:-translate-x-1/2 sm:-translate-y-1/2 sm:rounded-xl"
 			>
-				<DialogHeader className="relative border-b-2 border-foreground bg-brand p-5 pr-14 text-brand-foreground">
+				<DialogHeader className="relative border-b-2 border-rule bg-brand p-5 pr-14 text-brand-foreground">
 					<div className="flex items-center gap-3">
-						<span className="grid size-10 place-items-center rounded-full border-2 border-foreground bg-background text-foreground">
+						<span className="grid size-10 place-items-center rounded-full border-2 border-rule bg-background text-foreground">
 							<Music2Icon className="size-5" />
 						</span>
 						<div>
-							<DialogTitle className="text-xl font-display tracking-wide uppercase">
+							<DialogTitle className="text-xl font-display font-extrabold tracking-tight">
 								Bank a song
 							</DialogTitle>
 							<DialogDescription className="text-brand-foreground/75">

@@ -49,9 +49,9 @@ export default function ForgotPasswordPage() {
 	if (sent) {
 		return (
 			<AuthShell>
-				<Card className="w-full rounded-none border-2 border-foreground shadow-[6px_6px_0_0_var(--color-foreground)] ring-0">
+				<Card className="w-full rounded-(--radius-frame) border-2 border-rule shadow-(--shadow-lift-lg)">
 					<CardHeader>
-						<CardTitle className="flex items-center gap-2 text-xl font-display tracking-wide uppercase">
+						<CardTitle className="flex items-center gap-2 text-xl font-display font-extrabold tracking-tight">
 							<MailCheckIcon className="size-5" /> Check your email
 						</CardTitle>
 					</CardHeader>
@@ -61,7 +61,7 @@ export default function ForgotPasswordPage() {
 							once and expires in an hour.
 						</p>
 					</CardContent>
-					<CardFooter className="justify-center border-t-2 border-foreground text-sm">
+					<CardFooter className="justify-center border-t-2 border-rule text-sm">
 						<Link
 							href="/login"
 							className="font-semibold text-foreground underline underline-offset-4"
@@ -76,9 +76,9 @@ export default function ForgotPasswordPage() {
 
 	return (
 		<AuthShell>
-			<Card className="w-full rounded-none border-2 border-foreground shadow-[6px_6px_0_0_var(--color-foreground)] ring-0">
+			<Card className="w-full rounded-(--radius-frame) border-2 border-rule shadow-(--shadow-lift-lg)">
 				<CardHeader>
-					<CardTitle className="text-xl font-display tracking-wide uppercase">
+					<CardTitle className="text-xl font-display font-extrabold tracking-tight">
 						Forgot password
 					</CardTitle>
 				</CardHeader>
@@ -121,7 +121,7 @@ export default function ForgotPasswordPage() {
 						</Button>
 					</form>
 				</CardContent>
-				<CardFooter className="justify-center gap-1 border-t-2 border-foreground text-sm text-muted-foreground">
+				<CardFooter className="justify-center gap-1 border-t-2 border-rule text-sm text-muted-foreground">
 					Remembered it?
 					<Link
 						href="/login"

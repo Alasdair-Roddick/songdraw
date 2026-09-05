@@ -25,7 +25,7 @@ export function Vinyl({
 	return (
 		<div className="relative aspect-square w-full max-w-[min(78vw,20rem)]">
 			<div
-				className={`size-full rounded-full border-2 border-foreground bg-primary ${
+				className={`size-full rounded-full border-2 border-rule bg-primary ${
 					playing ? "animate-[spin_4s_linear_infinite]" : ""
 				} motion-reduce:animate-none`}
 				style={{
@@ -34,7 +34,7 @@ export function Vinyl({
 						"repeating-radial-gradient(circle at center, rgba(255,255,255,0.10) 0 1px, transparent 1px 6px)",
 				}}
 			>
-				<div className="absolute inset-[22%] overflow-hidden rounded-full border-2 border-foreground bg-muted">
+				<div className="absolute inset-[22%] overflow-hidden rounded-full border-2 border-rule bg-muted">
 					{artworkUrl ? (
 						// biome-ignore lint/performance/noImgElement: remote iTunes artwork, no next/image benefit
 						<img
@@ -49,7 +49,7 @@ export function Vinyl({
 						</div>
 					)}
 					{/* Spindle hole */}
-					<div className="absolute top-1/2 left-1/2 size-[9%] -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-foreground bg-background" />
+					<div className="absolute top-1/2 left-1/2 size-[9%] -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-rule bg-background" />
 				</div>
 			</div>
 
@@ -58,7 +58,7 @@ export function Vinyl({
 					type="button"
 					onClick={onToggle}
 					aria-label={playing ? `Pause ${label}` : `Play ${label}`}
-					className="absolute -right-1 -bottom-1 grid size-14 place-items-center rounded-full border-2 border-foreground bg-brand text-brand-foreground shadow-[3px_3px_0_0_var(--color-foreground)] transition-transform active:translate-y-px"
+					className="absolute -right-1 -bottom-1 grid size-14 place-items-center rounded-full border-2 border-rule bg-brand text-brand-foreground shadow-(--shadow-lift-sm) transition-transform active:translate-y-px"
 				>
 					{playing ? (
 						<PauseIcon className="size-6" />
@@ -67,7 +67,7 @@ export function Vinyl({
 					)}
 				</button>
 			) : (
-				<span className="absolute right-0 -bottom-1 border-2 border-foreground bg-background px-2 py-1 font-mono text-[10px] tracking-widest uppercase text-muted-foreground">
+				<span className="absolute right-0 -bottom-1 border-2 border-rule bg-background px-2 py-1 font-mono text-[10px] tracking-widest uppercase text-muted-foreground">
 					No preview
 				</span>
 			)}

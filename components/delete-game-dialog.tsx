@@ -71,7 +71,7 @@ export function DeleteGameDialog({
 						Delete
 					</Button>
 				</DialogTrigger>
-				<DialogContent className="rounded-none border-2 border-foreground">
+				<DialogContent className="rounded-(--radius-frame) border-2 border-rule">
 					<DialogHeader>
 						<DialogTitle>Delete {gameName}?</DialogTitle>
 						<DialogDescription>

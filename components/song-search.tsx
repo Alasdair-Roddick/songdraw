@@ -264,7 +264,7 @@ export function SongSearch({
 			)}
 
 			{showSkeletons && (
-				<div className="flex flex-col divide-y-2 divide-foreground border-2 border-foreground">
+				<div className="flex flex-col divide-y-2 divide-rule border-2 border-rule">
 					{SKELETON_ROWS.map((row) => (
 						<div key={row} className="flex items-center gap-3 p-2.5">
 							<div
@@ -312,7 +312,7 @@ export function SongSearch({
 						"[mask-image:linear-gradient(to_bottom,black_calc(100%-2.5rem),transparent)]",
 				)}
 			>
-				<div className="flex min-w-0 flex-col divide-y-2 divide-foreground border-2 border-foreground">
+				<div className="flex min-w-0 flex-col divide-y-2 divide-rule border-2 border-rule">
 					{results.map((track, i) => {
 						const isSelected =
 							selectedTrack?.providerTrackId === track.providerTrackId;
@@ -428,7 +428,7 @@ export function SongSearch({
 						transition={{ type: "spring", stiffness: 400, damping: 30 }}
 						className="sticky bottom-4 z-10"
 					>
-						<div className="flex items-center gap-3 border-2 border-foreground bg-background p-2.5 shadow-[4px_4px_0_0_var(--color-foreground)]">
+						<div className="flex items-center gap-3 border-2 border-rule bg-background p-2.5 shadow-(--shadow-lift)">
 							{selectedTrack.artworkUrl ? (
 								// biome-ignore lint/performance/noImgElement: remote iTunes artwork, no next/image benefit
 								<img

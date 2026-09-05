@@ -30,7 +30,7 @@ export function PendingInvites({ invites }: { invites: PendingInvite[] }) {
 	}
 
 	return (
-		<ul className="divide-y-2 divide-foreground border-2 border-foreground">
+		<ul className="divide-y-2 divide-rule border-2 border-rule">
 			{invites.map((invite) => (
 				<li
 					key={invite.id}

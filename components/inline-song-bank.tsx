@@ -9,7 +9,7 @@ export function InlineSongBank() {
 	const [saved, setSaved] = useState<string | null>(null);
 
 	return (
-		<div className="flex flex-wrap items-center justify-between gap-2 border-t-2 border-foreground pt-3">
+		<div className="flex flex-wrap items-center justify-between gap-2 border-t-2 border-rule pt-3">
 			{saved ? (
 				<p className="flex items-center gap-2 font-mono text-sm font-semibold">
 					<CheckIcon className="size-4 text-brand" /> {saved} is banked.

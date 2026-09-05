@@ -55,7 +55,7 @@ export default async function RoomsPage() {
 			<main className="mx-auto flex w-full max-w-4xl flex-1 flex-col gap-6 px-4 py-8 sm:px-6">
 				<div className="flex flex-wrap items-end justify-between gap-3">
 					<div className="flex flex-col gap-1">
-						<h1 className="text-4xl font-display tracking-wide uppercase leading-[0.95]">
+						<h1 className="text-4xl font-display font-extrabold tracking-tight leading-[0.95]">
 							Your{" "}
 							<span className="-rotate-1 inline-block bg-brand px-3 text-brand-foreground">
 								rooms
@@ -71,14 +71,14 @@ export default async function RoomsPage() {
 				</div>
 
 				{games.length === 0 ? (
-					<div className="flex flex-col items-center gap-1 border-2 border-foreground p-10 text-center">
+					<div className="flex flex-col items-center gap-1 border-2 border-rule p-10 text-center">
 						<p className="font-bold tracking-tight">No rooms yet</p>
 						<p className="font-mono text-sm text-muted-foreground">
 							Create one, then invite your friends by name.
 						</p>
 					</div>
 				) : (
-					<ul className="divide-y-2 divide-foreground border-2 border-foreground">
+					<ul className="divide-y-2 divide-rule border-2 border-rule">
 						{games.map(({ game: g, role }) => {
 							const members = memberCount.get(g.id) ?? 1;
 							const needed = MIN_MEMBERS - members;

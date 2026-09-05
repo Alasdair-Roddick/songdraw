@@ -113,7 +113,7 @@ export default async function GamePage({
 					<div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
 						{/* A long room name shouldn't force a 4xl line to overflow a
 						    375px screen, so the display size steps down on mobile. */}
-						<h1 className="text-3xl font-display tracking-wide uppercase leading-[0.95] break-words sm:text-4xl">
+						<h1 className="text-3xl font-display font-extrabold tracking-tight leading-[0.95] break-words sm:text-4xl">
 							{current.name}
 						</h1>
 						<div className="flex flex-wrap items-center gap-2">
@@ -126,12 +126,12 @@ export default async function GamePage({
 					    beside the title. As a segmented bar they're full-width,
 					    44px tap targets on a phone and shrink to fit on desktop. */}
 					<nav
-						className="flex w-full border-2 border-foreground sm:w-fit"
+						className="flex w-full border-2 border-rule sm:w-fit"
 						aria-label="Game views"
 					>
 						<Link
 							href={`/game/${id}/leaderboard`}
-							className="flex-1 border-r-2 border-foreground px-4 py-3 text-center font-mono text-xs font-semibold tracking-widest uppercase hover:bg-muted sm:flex-none sm:py-2"
+							className="flex-1 border-r-2 border-rule px-4 py-3 text-center font-mono text-xs font-semibold tracking-widest uppercase hover:bg-muted sm:flex-none sm:py-2"
 						>
 							Leaderboard
 						</Link>
@@ -144,7 +144,7 @@ export default async function GamePage({
 					</nav>
 
 					{/* Three blocks, one per seat — the unlock rule as a picture. */}
-					<div className="flex flex-col gap-2.5 border-2 border-foreground p-4">
+					<div className="flex flex-col gap-2.5 border-2 border-rule p-4">
 						<div className="flex items-center justify-between gap-3">
 							<span className="font-mono text-xs font-semibold tracking-widest uppercase text-muted-foreground">
 								{needed > 0 ? "Locked" : "Unlocked"}
@@ -157,7 +157,7 @@ export default async function GamePage({
 							{SEATS.map((seat, i) => (
 								<div
 									key={seat}
-									className={`h-3 flex-1 border-2 border-foreground ${
+									className={`h-3 flex-1 border-2 border-rule ${
 										i < members.length ? "bg-brand" : "bg-transparent"
 									}`}
 								/>

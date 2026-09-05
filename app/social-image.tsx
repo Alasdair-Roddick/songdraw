@@ -1,6 +1,7 @@
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { ImageResponse } from "next/og";
+import { BRAND_HEX } from "@/lib/brand-colors";
 
 export const socialImageSize = {
 	width: 1200,
@@ -11,9 +12,7 @@ export const socialImageSize = {
 // parse, so they're converted once here rather than eyeballed — an earlier
 // guess at the brand yellow drifted to lime and made every link preview look
 // like a different product.
-const brand = "#fbc600"; // oklch(0.85 0.18 90)
-const ink = "#0a0a0a"; // oklch(0.145 0 0)
-const paper = "#ffffff";
+const { brand, ink, paper } = BRAND_HEX;
 
 // iMessage, Slack and Discord all render this a few hundred pixels wide, so it
 // is built to survive being shrunk: three type sizes, no body copy, and the
@@ -24,18 +23,18 @@ const paper = "#ffffff";
 // next.config.ts for why these files need an explicit tracing entry.
 async function displayFonts() {
 	const dir = join(process.cwd(), "app/fonts");
-	const [bebas, black, semibold] = await Promise.all([
-		readFile(join(dir, "BebasNeue-Regular.ttf")),
+	const [display, black, semibold] = await Promise.all([
+		readFile(join(dir, "BricolageGrotesque-ExtraBold.ttf")),
 		readFile(join(dir, "Geist-Black.ttf")),
 		readFile(join(dir, "Geist-SemiBold.ttf")),
 	]);
 	return [
-		// Same split as the app: Bebas for the headline, Geist for everything
+		// Same split as the app: Bricolage for the headline, Geist for everything
 		// that has to stay readable small.
 		{
-			name: "Bebas Neue",
-			data: bebas,
-			weight: 400 as const,
+			name: "Bricolage Grotesque",
+			data: display,
+			weight: 800 as const,
 			style: "normal" as const,
 		},
 		{
@@ -129,13 +128,13 @@ export async function createSocialImage() {
 				<div style={{ display: "flex", flexDirection: "column" }}>
 					<span
 						style={{
-							fontFamily: "Bebas Neue",
-							fontSize: 132,
-							letterSpacing: "0.02em",
-							lineHeight: 0.94,
+							fontFamily: "Bricolage Grotesque",
+							fontSize: 104,
+							letterSpacing: "-0.035em",
+							lineHeight: 0.95,
 						}}
 					>
-						WHOSE
+						Whose
 					</span>
 					{/* The landing page's signature move: one word knocked out on a
 					    tilted brand block. It is what makes the preview recognisable
@@ -152,25 +151,25 @@ export async function createSocialImage() {
 					>
 						<span
 							style={{
-								fontFamily: "Bebas Neue",
-								fontSize: 132,
-								letterSpacing: "0.02em",
-								lineHeight: 0.94,
+								fontFamily: "Bricolage Grotesque",
+								fontSize: 104,
+								letterSpacing: "-0.035em",
+								lineHeight: 0.95,
 							}}
 						>
-							SONG
+							Song
 						</span>
 					</div>
 					<span
 						style={{
-							fontFamily: "Bebas Neue",
-							fontSize: 132,
-							letterSpacing: "0.02em",
-							lineHeight: 0.94,
+							fontFamily: "Bricolage Grotesque",
+							fontSize: 104,
+							letterSpacing: "-0.035em",
+							lineHeight: 0.95,
 							marginTop: 6,
 						}}
 					>
-						IS THIS?
+						is this?
 					</span>
 				</div>
 
@@ -178,7 +177,7 @@ export async function createSocialImage() {
 					style={{
 						background: paper,
 						border: `4px solid ${ink}`,
-						boxShadow: `14px 14px 0 0 ${ink}`,
+						boxShadow: `0 18px 44px -18px ${ink}88, 0 0 60px -20px ${brand}`,
 						display: "flex",
 						flexDirection: "column",
 						height: 320,

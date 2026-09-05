@@ -1,8 +1,11 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="title">
   <title>SongDraw</title>
-  <rect width="512" height="512" rx="80" fill="#252525"/>
-  <rect x="48" y="48" width="416" height="416" rx="48" fill="#f8d02a"/>
-  <rect x="72" y="72" width="368" height="368" rx="28" fill="#252525"/>
+  <!-- Colours mirror lib/brand-colors.ts (a static SVG cannot import it).
+       They had drifted: this said #f8d02a / #252525 while the tokens say
+       #e99f47 / #312620, so the favicon was a different yellow to the app. -->
+  <rect width="512" height="512" rx="80" fill="#312620"/>
+  <rect x="48" y="48" width="416" height="416" rx="48" fill="#e99f47"/>
+  <rect x="72" y="72" width="368" height="368" rx="28" fill="#312620"/>
   <g fill="#fff">
     <rect x="112" y="236" width="44" height="160" rx="22"/>
     <rect x="184" y="156" width="44" height="240" rx="22"/>
