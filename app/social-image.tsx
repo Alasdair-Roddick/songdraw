@@ -1,6 +1,7 @@
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { ImageResponse } from "next/og";
+import { BRAND_HEX } from "@/lib/brand-colors";
 
 export const socialImageSize = {
 	width: 1200,
@@ -11,9 +12,7 @@ export const socialImageSize = {
 // parse, so they're converted once here rather than eyeballed — an earlier
 // guess at the brand yellow drifted to lime and made every link preview look
 // like a different product.
-const brand = "#fbc600"; // oklch(0.85 0.18 90)
-const ink = "#0a0a0a"; // oklch(0.145 0 0)
-const paper = "#ffffff";
+const { brand, ink, paper } = BRAND_HEX;
 
 // iMessage, Slack and Discord all render this a few hundred pixels wide, so it
 // is built to survive being shrunk: three type sizes, no body copy, and the
