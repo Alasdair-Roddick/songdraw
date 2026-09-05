@@ -184,10 +184,15 @@ export function SettingsDialog({
 	async function handleDeleteAccount() {
 		setDeleteError(null);
 		setDeleting(true);
-		const { error } = await authClient.deleteUser({ password: deletePassword });
+		const res = await fetch("/api/account", {
+			method: "DELETE",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({ password: deletePassword }),
+		});
 		setDeleting(false);
-		if (error) {
-			setDeleteError(error.message ?? "Couldn't delete account.");
+		if (!res.ok) {
+			const body = await res.json().catch(() => null);
+			setDeleteError(body?.error ?? "Couldn't close your account.");
 			return;
 		}
 		router.push("/login");
@@ -369,10 +374,12 @@ export function SettingsDialog({
 							</AlertDialogTrigger>
 							<AlertDialogContent className="rounded-(--radius-frame) border-2 border-rule">
 								<AlertDialogHeader>
-									<AlertDialogTitle>Delete your account?</AlertDialogTitle>
+									<AlertDialogTitle>Close your account?</AlertDialogTitle>
 									<AlertDialogDescription>
-										This permanently deletes your account and can't be undone.
-										Enter your password to confirm.
+										This closes your account for good — you'll be signed out and
+										won't be able to log back in. Past rounds stay in your rooms
+										under a former-player name, so nobody else loses their
+										history. Enter your password to confirm.
 									</AlertDialogDescription>
 								</AlertDialogHeader>
 								<PasswordInput
