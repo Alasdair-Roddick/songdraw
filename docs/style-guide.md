@@ -101,6 +101,14 @@ noticed for months.
   left, `pl-9`. Passwords: use `PasswordInput`.
 - **Brand mark:** `<EqMark />` + `<span className="text-lg font-bold
   tracking-tighter">SongDraw</span>`. Never recreate the bars inline.
+- **The drawn track:** `<Cassette />`. The album cover is its J-card and the
+  title and artist sit beside it, so **never add a caption block under it** —
+  that block and its gap were most of what used to overflow a panel. The cover
+  is also the play control; there is no separate play button. Spools turn only
+  while audio plays. It replaced a spinning record because the play panel is
+  height-constrained and a square hero isn't affordable there. It reads as an
+  object through a tonal stack — dark shell, light card, recessed window, dark
+  spools — not through extra borders.
 - **Danger zone:** `border-2 border-destructive p-4`, no fill.
 
 ## Motion
@@ -124,18 +132,43 @@ noticed for months.
 These encode fixed bugs. Changing them reopens the bug.
 
 - **`<body>` is a flex container.** Anything added there becomes a flex item and
-  fights the feed's `100dvh` scroller. Page-wide overlays belong in a
+  fights the feed's `100svh` scroller. Page-wide overlays belong in a
   pseudo-element in `globals.css`, never as an element in `layout.tsx`.
-- **`components/round-feed.tsx` scroller** (`h-[100dvh] snap-y snap-mandatory
+- **`components/round-feed.tsx` scroller** (`h-[100svh] snap-y snap-mandatory
   overflow-y-scroll overscroll-y-contain`) — untouched.
-- **`Shell` uses `min-h-[100dvh]`, never `h-`.** A fixed height can't produce an
-  oversized snap area, which was simultaneously the clipping bug and the
-  trapping bug (`02c8a02`, `9a8bebf`).
+- **The scroller and every `Shell` panel are both exactly `h-[100svh]`.** One
+  room is one snapport, so there is only ever one snap position per room.
+  **`svh`, never `dvh`:** `dvh` tracks the iOS toolbar, so it resizes the snap
+  area mid-gesture. (The earlier rule here said `min-h-[100dvh]`, never `h-`.
+  That was true only while a panel had no scroll region of its own and had to
+  grow to avoid clipping — see the next point, which replaces it.)
+- **Nothing inside a panel scrolls. The feed's scroller is the only one on the
+  screen.** A scroll region inside a panel is worse than the bug it fixes: it
+  eats the drag you meant for the feed, and the `overscroll-contain` that stops
+  it advancing a room then guarantees you're stuck in it. Content fits instead.
+- **The hero is the only elastic zone.** `Cassette` sits in the panel's single
+  `flex-1 min-h-0` slot and takes whatever height the state body leaves, so a
+  short viewport or a big room shrinks the artwork rather than pushing the
+  picker off the bottom. Every other zone is `shrink-0`. Adding a second
+  growing block, or an unbounded list, reopens the original bug — which is why
+  the member picker goes to three columns past seven others, and the
+  submitter's guess list is a wrapping avatar grid rather than a row each.
+- The cassette is height-driven with the width constraint folded into `max-h`
+  (`h-full w-auto aspect-[8/5] max-h-[calc(min(100vw-3rem,28rem)/1.6)]`), so
+  its derived width can never exceed the column and distort the ratio. That
+  `3rem` is Shell's `px-6` — change one and change the other.
+- Shell's `px-6` also reserves the right-hand gutter `ProgressRail` is fixed
+  into. Verified at 320×568, 390×560, 390×664 and 390×844 from 3 to 12 seats:
+  every panel equals the viewport, no descendant scrolls, nothing clips, the
+  document never scrolls sideways, and the rail clears the content.
 - Never add `filter`, `backdrop-filter`, `transform`, `will-change`, `contain`
   or `content-visibility` to the scroller or to `Shell`.
-- **Panel height is behaviour, not just layout.** A room shorter than the
-  viewport snap-locks; a taller one scrolls freely. Growing type or padding can
-  silently flip a room between the two — measure at 390×844.
+- **A panel's fixed zones are a budget, not just layout.** Every room is the
+  same height now, so growing type or padding doesn't change snapping — it eats
+  the picker's space instead, and past a point the cassette stops absorbing it.
+  Re-measure at 390×664 (the real iOS height with toolbars showing) whenever a
+  panel gains a block. `/dev/play` exists for exactly this: it drives the real
+  feed with synthetic rounds and a 3–12 seat slider.
 - Adding a key to `@theme` needs a dev-server restart; Tailwind caches the
   resolved theme and will silently emit no utility until then.
 
