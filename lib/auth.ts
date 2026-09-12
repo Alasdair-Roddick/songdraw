@@ -5,6 +5,7 @@ import { and, ne, sql } from "drizzle-orm";
 import { db } from "./db";
 import { user } from "./db/schema";
 import { sendPasswordResetEmail } from "./email";
+import { usernameError } from "./username";
 
 // Names are compared case-insensitively against the `user_name_lower_unique`
 // index in lib/db/schema.ts. Checking here first turns what would be a raw
@@ -27,15 +28,16 @@ async function assertNameAvailable(name: string, exceptUserId?: string) {
 	}
 }
 
-// Trimmed before both the check and the write, so " Alex" can't slip past a
-// comparison against "Alex" and then land in the table looking identical.
+// Reject rather than silently edit a player's chosen username. The same rule
+// powers the signup/settings hint, and also covers direct API requests.
 function normaliseName(value: unknown) {
-	if (typeof value !== "string") return null;
-	const name = value.trim();
-	if (!name) {
-		throw new APIError("BAD_REQUEST", { message: "Pick a display name." });
+	if (value === undefined) return null;
+	if (typeof value !== "string") {
+		throw new APIError("BAD_REQUEST", { message: "Pick a username." });
 	}
-	return name;
+	const error = usernameError(value);
+	if (error) throw new APIError("BAD_REQUEST", { message: error });
+	return value;
 }
 
 export const auth = betterAuth({
