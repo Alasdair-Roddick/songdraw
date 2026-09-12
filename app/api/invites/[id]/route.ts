@@ -1,9 +1,12 @@
-import { and, eq } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { headers } from "next/headers";
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
+import { sendWakeups } from "@/lib/daily-job";
 import { db } from "@/lib/db";
-import { game, gameInvite, gameMember } from "@/lib/db/game";
+import { game } from "@/lib/db/game";
+import { cancelInvite, respondToInvite } from "@/lib/moderation";
+import { MutationError } from "@/lib/mutation";
 import { notifyGame, notifyUser } from "@/lib/realtime";
 
 // Accept / decline — invitee only.
@@ -26,50 +29,25 @@ export async function PATCH(
 		);
 	}
 
-	const [invite] = await db
-		.select()
-		.from(gameInvite)
-		.where(
-			and(
-				eq(gameInvite.id, id),
-				eq(gameInvite.inviteeId, session.user.id),
-				eq(gameInvite.status, "pending"),
-			),
-		)
-		.limit(1);
-
-	// Same 404 whether it's someone else's invite or already answered — an
-	// attacker shouldn't be able to probe for valid invite ids.
-	if (!invite) {
-		return NextResponse.json({ error: "invite not found" }, { status: 404 });
+	let invite: Awaited<ReturnType<typeof respondToInvite>>;
+	try {
+		invite = await db.transaction((tx) =>
+			respondToInvite(tx, id, session.user.id, action),
+		);
+	} catch (error) {
+		if (error instanceof MutationError)
+			return NextResponse.json(
+				{ error: error.message },
+				{ status: error.status },
+			);
+		throw error;
 	}
-
 	if (action === "decline") {
-		await db
-			.update(gameInvite)
-			.set({ status: "declined", respondedAt: new Date() })
-			.where(eq(gameInvite.id, id));
-
-		await notifyUser(invite.inviterId, "invite:answered");
+		await sendWakeups([
+			{ kind: "user", id: invite.inviterId, event: "invite:answered" },
+		]);
 		return NextResponse.json({ status: "declined" });
 	}
-
-	await db.transaction(async (tx) => {
-		await tx
-			.update(gameInvite)
-			.set({ status: "accepted", respondedAt: new Date() })
-			.where(eq(gameInvite.id, id));
-
-		// A previously-"left" member rejoining flips their row back to active
-		// rather than colliding with the unique (game, user) constraint.
-		await tx
-			.insert(gameMember)
-			.values({ gameId: invite.gameId, userId: session.user.id })
-			.onConflictDoUpdate({
-				target: [gameMember.gameId, gameMember.userId],
-				set: { status: "active", joinedAt: new Date() },
-			});
-	});
 
 	await notifyUser(invite.inviterId, "invite:answered");
 	// Refresh the invitee's other tabs too: this is the signal that makes a
@@ -97,29 +75,20 @@ export async function DELETE(
 		return NextResponse.json({ error: "unauthorized" }, { status: 401 });
 	}
 
-	const [row] = await db
-		.select({ invite: gameInvite, ownerId: game.ownerId })
-		.from(gameInvite)
-		.innerJoin(game, eq(gameInvite.gameId, game.id))
-		.where(and(eq(gameInvite.id, id), eq(gameInvite.status, "pending")))
-		.limit(1);
-
-	if (!row) {
-		return NextResponse.json({ error: "invite not found" }, { status: 404 });
+	try {
+		const invite = await db.transaction((tx) =>
+			cancelInvite(tx, id, session.user.id),
+		);
+		await sendWakeups([
+			{ kind: "user", id: invite.inviteeId, event: "invite:cancelled" },
+		]);
+		return NextResponse.json({ status: "cancelled" });
+	} catch (error) {
+		if (error instanceof MutationError)
+			return NextResponse.json(
+				{ error: error.message },
+				{ status: error.status },
+			);
+		throw error;
 	}
-	if (
-		row.invite.inviterId !== session.user.id &&
-		row.ownerId !== session.user.id
-	) {
-		return NextResponse.json({ error: "not allowed" }, { status: 403 });
-	}
-
-	await db
-		.update(gameInvite)
-		.set({ status: "cancelled", respondedAt: new Date() })
-		.where(eq(gameInvite.id, id));
-
-	await notifyUser(row.invite.inviteeId, "invite:cancelled");
-
-	return NextResponse.json({ status: "cancelled" });
 }

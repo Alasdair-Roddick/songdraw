@@ -15,6 +15,13 @@
       "when": 1788509125684,
       "tag": "0001_harsh_albert_cleary",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1789198165441,
+      "tag": "0002_admin_write_api",
+      "breakpoints": true
     }
   ]
 }

@@ -145,3 +145,9 @@ take a backup, and open an incident. Recompute must be performed with a
 reviewed one-off script because membership is historical state; blindly
 truncating snapshots would lose valid streak context for members who left.
 Record the game ID, affected dates, and validation query in the incident.
+
+
+## Admin operations API
+
+The signed write API, migration prerequisites, retry contract and staging checks
+are documented in [admin-write-api.md](admin-write-api.md).

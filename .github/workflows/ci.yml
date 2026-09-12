@@ -11,6 +11,19 @@ permissions:
 jobs:
   verify:
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: songdraw-local-test
+          POSTGRES_DB: songdraw_admin_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
     steps:
       - uses: actions/checkout@v4
       - uses: oven-sh/setup-bun@v2
@@ -18,6 +31,8 @@ jobs:
           bun-version: "1.3.9"
       - run: bun install --frozen-lockfile
       - run: bun run check
+        env:
+          ADMIN_TEST_DATABASE_URL: postgres://postgres:songdraw-local-test@127.0.0.1:5432/songdraw_admin_test
       - run: bun run build
 
   # Deploy lives here rather than in its own workflow because `needs:` only
