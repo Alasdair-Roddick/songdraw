@@ -2,7 +2,6 @@
 
 import {
 	CheckIcon,
-	ChevronDownIcon,
 	ClockIcon,
 	DoorOpenIcon,
 	SparklesIcon,
@@ -11,17 +10,40 @@ import {
 import { AnimatePresence, motion } from "motion/react";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
+import { Cassette } from "@/components/cassette";
 import { InlineSongBank } from "@/components/inline-song-bank";
 import { ShareResult } from "@/components/share-result";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import { Vinyl } from "@/components/vinyl";
 import { useFeed } from "@/hooks/use-feed";
 import type { FeedEntry, MemberView } from "@/lib/round";
 
 export function RoundFeed({ channels }: { channels: string[] }) {
 	const { entries, isLoading, applyRound } = useFeed(channels);
 
+	if (isLoading && entries.length === 0) return null;
+
+	return <FeedScroller entries={entries} onGuessed={applyRound} />;
+}
+
+/**
+ * The feed without its data source. Split out so the dev-only design preview
+ * at /dev/play can drive the real panels with synthetic rounds instead of
+ * reimplementing the layout it exists to check.
+ */
+export function FeedScroller({
+	entries,
+	onGuessed,
+	/** Overridden by the preview, which has no real round to POST against. */
+	submitGuess,
+}: {
+	entries: FeedEntry[];
+	onGuessed: (gameId: string, round: FeedEntry["round"]) => void;
+	submitGuess?: (
+		gameId: string,
+		memberId: string,
+	) => Promise<FeedEntry["round"]>;
+}) {
 	// Rounds that flipped to revealed while this tab was open get the full
 	// reveal animation; ones already revealed on first load just render.
 	//
@@ -142,8 +164,6 @@ export function RoundFeed({ channels }: { channels: string[] }) {
 		return () => observer.disconnect();
 	}, [playingId]);
 
-	if (isLoading && entries.length === 0) return null;
-
 	const unguessed = entries.filter(
 		(entry) => entry.round.state === "guessing",
 	).length;
@@ -151,11 +171,18 @@ export function RoundFeed({ channels }: { channels: string[] }) {
 	// Rooms still wanting a guess come first, so the ones you owe are the
 	// screens you hit before any you've already played. Ties keep the server's
 	// order so panels don't reshuffle under a thumb mid-scroll.
-	const ordered = [...entries].sort((a, b) => {
-		const aOwed = a.round.state === "guessing" ? 0 : 1;
-		const bOwed = b.round.state === "guessing" ? 0 : 1;
-		return aOwed - bOwed;
-	});
+	//
+	// Rooms with no round today render no panel at all, so they're filtered out
+	// here rather than inside Panel. One array drives the sections, the rail and
+	// the final panel's index — deriving them separately let the rail's dots
+	// fall out of step with the panels the moment any room wasn't `guessing`.
+	const panels = [...entries]
+		.filter((entry) => entry.round.state !== "none")
+		.sort((a, b) => {
+			const aOwed = a.round.state === "guessing" ? 0 : 1;
+			const bOwed = b.round.state === "guessing" ? 0 : 1;
+			return aOwed - bOwed;
+		});
 
 	return (
 		<>
@@ -171,34 +198,32 @@ export function RoundFeed({ channels }: { channels: string[] }) {
 			 * what makes a small flick advance exactly one room instead of
 			 * drifting; `snap-always` also stops a fast flick skipping past two.
 			 *
-			 * The reason this doesn't trap a room taller than the viewport is
-			 * the oversized-snap-area rule: when a snap area is larger than the
-			 * snapport, *every* position that still covers the snapport is a
-			 * valid snap position, so mandatory snapping stops fighting you for
-			 * the whole height of that room. Measured headless at 390x844 with
-			 * a 1514px room: a 60px nudge inside a short room returns to its
-			 * top (locked), 250px into the tall room stays exactly where it was
-			 * put (free), and scrolling to its end locks onto the next room.
+			 * Every panel is exactly as tall as this scroller and nothing inside
+			 * one scrolls, so this is the only scroller on the screen and a
+			 * vertical drag has exactly one meaning. The old layout let a room
+			 * grow past the viewport and leaned on the oversized-snap-area rule
+			 * to stay readable, which is what made a slightly-too-long drag
+			 * inside a tall room flick to the next one — see Shell.
 			 *
-			 * This only holds while panels use `min-h`, never a fixed `h` — a
-			 * fixed height can't produce an oversized snap area, which is how
-			 * the clipping bug and the trapping bug were the same bug.
+			 * `svh`, not `dvh`: `dvh` tracks the iOS toolbar and so changes the
+			 * snap area's height mid-gesture.
 			 */}
 			<div
 				ref={containerRef}
-				className="h-[100dvh] snap-y snap-mandatory overflow-y-scroll overscroll-y-contain [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+				className="h-[100svh] snap-y snap-mandatory overflow-y-scroll overscroll-y-contain [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
 			>
-				{entries.length === 0 ? (
+				{panels.length === 0 ? (
 					<EmptyPanel />
 				) : (
 					<>
-						{ordered.map((entry, index) => (
+						{panels.map((entry, index) => (
 							<Panel
 								key={entry.gameId}
 								entry={entry}
 								index={index}
 								justRevealed={justRevealed.has(entry.gameId)}
-								onGuessed={applyRound}
+								onGuessed={onGuessed}
+								submitGuess={submitGuess}
 								playing={playingId === entry.gameId}
 								onTogglePreview={() =>
 									togglePreview(
@@ -208,17 +233,16 @@ export function RoundFeed({ channels }: { channels: string[] }) {
 											: entry.round.track.previewUrl,
 									)
 								}
-								showHint={index === 0 && entries.length > 1}
 							/>
 						))}
-						<DonePanel remaining={unguessed} index={entries.length} />
+						<DonePanel remaining={unguessed} index={panels.length} />
 					</>
 				)}
 			</div>
 
-			{entries.length > 0 && (
+			{panels.length > 0 && (
 				<ProgressRail
-					entries={entries}
+					entries={panels}
 					activeIndex={activeIndex}
 					remaining={unguessed}
 				/>
@@ -243,7 +267,9 @@ function ProgressRail({
 	remaining: number;
 }) {
 	return (
-		<div className="pointer-events-none fixed top-1/2 right-3 z-10 flex -translate-y-1/2 flex-col items-center gap-2">
+		// Tucked to the very edge: the panel reserves a gutter for it (see
+		// Shell), and any further in and the marks sit over the cassette.
+		<div className="pointer-events-none fixed top-1/2 right-1 z-10 flex -translate-y-1/2 flex-col items-center gap-2">
 			{remaining > 0 && (
 				<span className="mb-1 font-mono text-[10px] font-bold tracking-widest tabular-nums text-muted-foreground [writing-mode:vertical-rl]">
 					{remaining} left
@@ -280,31 +306,46 @@ function Shell({
 	id,
 	index,
 	children,
-	hint,
 }: {
 	id?: string;
 	index: number;
 	children: React.ReactNode;
-	hint?: React.ReactNode;
 }) {
 	return (
-		// `min-h`, not `h`, and this is load-bearing twice over. Measured at
-		// 390x844: with a fixed `h-[100dvh]` a room needing ~1264px stayed
-		// pinned at 757px and its last block fell outside the section entirely.
-		// `min-h` lets it grow to 1280px so nothing is cut off — and growing
-		// past the viewport is also what makes it an oversized snap area, which
-		// is what lets you scroll freely inside it (see the container above).
-		// The inner `m-auto` only centres the common short room.
+		// A fixed `h`, and nothing inside it scrolls. That is the whole design:
+		// one room is exactly one screen, so a vertical drag can only ever mean
+		// "next room". An inner scroll region was tried and is worse than the
+		// bug it fixed — a scroller sitting in the middle of a snap feed eats
+		// the drag you meant for the feed, and `overscroll-contain` then
+		// guarantees you're stuck in it. The content fits instead: the hero
+		// absorbs all the slack (Panel) and every other zone is `shrink-0`.
 		<section
 			data-panel={id}
 			data-index={index}
-			className="relative flex min-h-[100dvh] snap-start snap-always flex-col px-4 py-8 sm:px-6"
+			// `px-6` rather than `px-4` reserves the right-hand gutter the progress
+			// rail sits in. The rail is fixed and the column is centred, so
+			// padding is what keeps a member chip from running underneath it.
+			className="relative flex h-[100svh] snap-start snap-always flex-col px-6 py-5 sm:px-8"
 		>
-			<div className="m-auto flex w-full max-w-md flex-col items-center gap-6">
+			<div className="mx-auto flex min-h-0 w-full max-w-md flex-1 flex-col gap-3">
 				{children}
 			</div>
-			{hint}
 		</section>
+	);
+}
+
+/**
+ * Room name plus what this screen is asking of you, on one line. Both used to
+ * be separate blocks; at ~700px of real viewport a panel can't afford the
+ * duplication, and the prompt was competing with the hero anyway.
+ */
+function Eyebrow({ gameId, gameName }: { gameId: string; gameName: string }) {
+	return (
+		<p className="shrink-0 truncate text-center font-mono text-xs font-semibold tracking-widest uppercase text-muted-foreground">
+			<Link href={`/game/${gameId}`} className="hover:text-foreground">
+				{gameName}
+			</Link>
+		</p>
 	);
 }
 
@@ -313,78 +354,81 @@ function Panel({
 	index,
 	justRevealed,
 	onGuessed,
+	submitGuess,
 	playing,
 	onTogglePreview,
-	showHint,
 }: {
 	entry: FeedEntry;
 	index: number;
 	justRevealed: boolean;
 	onGuessed: (gameId: string, round: FeedEntry["round"]) => void;
+	submitGuess?: (
+		gameId: string,
+		memberId: string,
+	) => Promise<FeedEntry["round"]>;
 	playing: boolean;
 	onTogglePreview: () => void;
-	showHint: boolean;
 }) {
 	const round = entry.round;
 	if (round.state === "none") return null;
 
 	return (
-		<Shell
-			id={entry.gameId}
-			index={index}
-			hint={
-				showHint ? (
-					<motion.div
-						animate={{ y: [0, 5, 0] }}
-						transition={{ duration: 1.6, repeat: Number.POSITIVE_INFINITY }}
-						className="absolute inset-x-0 bottom-4 flex justify-center text-muted-foreground motion-reduce:hidden"
-					>
-						<ChevronDownIcon className="size-5" />
-					</motion.div>
-				) : null
-			}
-		>
-			<Link
-				href={`/game/${entry.gameId}`}
-				className="font-mono text-xs font-semibold tracking-widest uppercase text-muted-foreground hover:text-foreground"
-			>
-				{entry.gameName}
-			</Link>
+		<Shell id={entry.gameId} index={index}>
+			<Eyebrow gameId={entry.gameId} gameName={entry.gameName} />
 
-			<Vinyl
-				artworkUrl={round.track.artworkUrl}
-				playing={playing}
-				onToggle={onTogglePreview}
-				canPlay={!!round.track.previewUrl}
-				label={round.track.title}
-			/>
-
-			<div className="flex max-w-sm flex-col items-center gap-1 text-center">
-				{/* Stays on the sans. Display type is for our words, not the
-				    artist's — a song title keeps whatever casing it shipped with. */}
-				<p className="text-xl font-bold tracking-tight">{round.track.title}</p>
-				<p className="font-mono text-sm text-muted-foreground">
-					{round.track.artist}
-				</p>
+			{/* The hero is the only elastic zone: it takes whatever height the
+			    state body leaves and shrinks on a short viewport, which is how
+			    the panel fits without anything scrolling. Title and artist ride
+			    on the cassette's card, so there is no caption block or gap here
+			    either — that was most of what used to overflow. */}
+			<div className="flex min-h-0 flex-1 items-center justify-center">
+				<Cassette
+					artworkUrl={round.track.artworkUrl}
+					artist={round.track.artist}
+					playing={playing}
+					onToggle={onTogglePreview}
+					canPlay={!!round.track.previewUrl}
+					label={round.track.title}
+				/>
 			</div>
 
-			<div className="w-full max-w-sm">
-				{round.state === "guessing" && (
-					<GuessBody
-						gameId={entry.gameId}
-						members={entry.members}
-						viewerMemberId={entry.viewerMemberId}
-						onGuessed={onGuessed}
-					/>
-				)}
-				{round.state === "locked" && <LockedBody round={round} />}
-				{round.state === "revealed" && (
-					<RevealedBody round={round} justRevealed={justRevealed} />
-				)}
-				{round.state === "submitter" && <SubmitterBody round={round} />}
-			</div>
+			{round.state === "guessing" && (
+				<GuessBody
+					gameId={entry.gameId}
+					members={entry.members}
+					viewerMemberId={entry.viewerMemberId}
+					onGuessed={onGuessed}
+					submitGuess={submitGuess}
+				/>
+			)}
+			{round.state === "locked" && <LockedBody round={round} />}
+			{round.state === "revealed" && (
+				<RevealedBody round={round} justRevealed={justRevealed} />
+			)}
+			{round.state === "submitter" && <SubmitterBody round={round} />}
 		</Shell>
 	);
+}
+
+/**
+ * The real guess. Returns the server's post-guess view, which is applied
+ * straight to the feed cache — the server also broadcasts, but that only lands
+ * if Realtime is configured, and relying on it left the picker on screen after
+ * a successful guess.
+ */
+async function postGuess(gameId: string, memberId: string) {
+	const res = await fetch(`/api/games/${gameId}/round/guess`, {
+		method: "POST",
+		headers: { "Content-Type": "application/json" },
+		body: JSON.stringify({ memberId }),
+	});
+
+	if (!res.ok) {
+		const body = await res.json().catch(() => null);
+		throw new Error(body?.error ?? "Couldn't lock that in — try again.");
+	}
+
+	return (await res.json()) as FeedEntry["round"];
 }
 
 function GuessBody({
@@ -392,11 +436,16 @@ function GuessBody({
 	members,
 	viewerMemberId,
 	onGuessed,
+	submitGuess,
 }: {
 	gameId: string;
 	members: MemberView[];
 	viewerMemberId: string;
 	onGuessed: (gameId: string, round: FeedEntry["round"]) => void;
+	submitGuess?: (
+		gameId: string,
+		memberId: string,
+	) => Promise<FeedEntry["round"]>;
 }) {
 	const [picked, setPicked] = useState<string | null>(null);
 	const [busy, setBusy] = useState(false);
@@ -408,66 +457,64 @@ function GuessBody({
 		setBusy(true);
 		setError(null);
 
-		const res = await fetch(`/api/games/${gameId}/round/guess`, {
-			method: "POST",
-			headers: { "Content-Type": "application/json" },
-			body: JSON.stringify({ memberId: picked }),
-		});
-
-		if (!res.ok) {
+		let view: FeedEntry["round"];
+		try {
+			view = submitGuess
+				? await submitGuess(gameId, picked)
+				: await postGuess(gameId, picked);
+		} catch (cause) {
 			setBusy(false);
-			const body = await res.json().catch(() => null);
-			setError(body?.error ?? "Couldn't lock that in — try again.");
+			setError(
+				cause instanceof Error ? cause.message : "Couldn't lock that in.",
+			);
 			return;
 		}
 
-		// Apply the returned view straight to the feed cache. The server also
-		// broadcasts, but that only lands if Realtime is configured — relying on
-		// it left the picker on screen after a successful guess.
-		const view = (await res.json()) as FeedEntry["round"];
 		setLocked(true);
 		// Hold the confirmation just long enough to read before the panel swaps.
 		setTimeout(() => onGuessed(gameId, view), 700);
 	}
 
+	const others = members.filter((member) => member.id !== viewerMemberId);
+	// Three columns past seven, so the picker's height stays capped at four
+	// rows however big the room gets. Four rows of 44px is what the panel can
+	// afford on a 560px viewport once the hero has shrunk to its floor.
+	const columns = others.length > 7 ? "grid-cols-3" : "grid-cols-2";
+
 	return (
-		<div className="flex flex-col gap-3">
-			<p className="text-center font-bold tracking-tight">
+		<div className="flex shrink-0 flex-col gap-2">
+			<p className="text-center font-mono text-xs font-semibold tracking-widest uppercase text-muted-foreground">
 				Whose song is this?
 			</p>
-			<ul className="grid grid-cols-2 gap-2">
-				{members
-					.filter((member) => member.id !== viewerMemberId)
-					.map((member) => {
-						const isPicked = picked === member.id;
-						return (
-							<li key={member.id}>
-								<motion.button
-									type="button"
-									whileTap={{ scale: 0.97 }}
-									onClick={() => setPicked(member.id)}
-									aria-pressed={isPicked}
-									className={`flex w-full items-center gap-2 border-2 border-rule p-2 text-left transition-colors ${
-										isPicked
-											? "bg-brand text-brand-foreground"
-											: "hover:bg-muted"
-									}`}
-								>
-									<Avatar className="size-6">
-										{member.image && (
-											<AvatarImage src={member.image} alt={member.name} />
-										)}
-										<AvatarFallback>
-											{member.name.charAt(0).toUpperCase()}
-										</AvatarFallback>
-									</Avatar>
-									<span className="min-w-0 truncate text-sm font-medium">
-										{member.name}
-									</span>
-								</motion.button>
-							</li>
-						);
-					})}
+			<ul className={`grid gap-1.5 ${columns}`}>
+				{others.map((member) => {
+					const isPicked = picked === member.id;
+					return (
+						<li key={member.id}>
+							<motion.button
+								type="button"
+								whileTap={{ scale: 0.97 }}
+								onClick={() => setPicked(member.id)}
+								aria-pressed={isPicked}
+								className={`flex h-11 w-full items-center gap-1.5 border-2 border-rule px-1.5 text-left transition-colors ${
+									isPicked ? "bg-brand text-brand-foreground" : "hover:bg-muted"
+								}`}
+							>
+								<Avatar className="size-6 shrink-0">
+									{member.image && (
+										<AvatarImage src={member.image} alt={member.name} />
+									)}
+									<AvatarFallback>
+										{member.name.charAt(0).toUpperCase()}
+									</AvatarFallback>
+								</Avatar>
+								<span className="min-w-0 truncate text-sm font-medium">
+									{member.name}
+								</span>
+							</motion.button>
+						</li>
+					);
+				})}
 			</ul>
 
 			{error && (
@@ -530,26 +577,28 @@ function LockedBody({
 	round: Extract<FeedEntry["round"], { state: "locked" }>;
 }) {
 	return (
-		<div className="flex flex-col items-center gap-2 border-2 border-rule p-4">
-			<p className="font-mono text-xs font-semibold tracking-widest uppercase text-muted-foreground">
-				Locked in
-			</p>
-			<div className="flex items-center gap-2">
-				<Avatar className="size-6">
-					{round.guessed.image && (
-						<AvatarImage src={round.guessed.image} alt={round.guessed.name} />
-					)}
-					<AvatarFallback>
-						{round.guessed.name.charAt(0).toUpperCase()}
-					</AvatarFallback>
-				</Avatar>
-				<span className="font-bold">{round.guessed.name}</span>
+		<div className="shrink-0">
+			<div className="flex flex-col items-center gap-2 border-2 border-rule p-4">
+				<p className="font-mono text-xs font-semibold tracking-widest uppercase text-muted-foreground">
+					Locked in
+				</p>
+				<div className="flex items-center gap-2">
+					<Avatar className="size-6">
+						{round.guessed.image && (
+							<AvatarImage src={round.guessed.image} alt={round.guessed.name} />
+						)}
+						<AvatarFallback>
+							{round.guessed.name.charAt(0).toUpperCase()}
+						</AvatarFallback>
+					</Avatar>
+					<span className="font-bold">{round.guessed.name}</span>
+				</div>
+				<p className="text-center font-mono text-sm text-muted-foreground">
+					{round.waitingOn > 0
+						? `Waiting on ${round.waitingOn} more — answer at 5pm.`
+						: "Answer unlocking…"}
+				</p>
 			</div>
-			<p className="text-center font-mono text-sm text-muted-foreground">
-				{round.waitingOn > 0
-					? `Waiting on ${round.waitingOn} more — answer at 5pm.`
-					: "Answer unlocking…"}
-			</p>
 		</div>
 	);
 }
@@ -562,99 +611,104 @@ function RevealedBody({
 	justRevealed: boolean;
 }) {
 	return (
-		<motion.div
-			// A round that flips while you're watching gets the full treatment;
-			// one that was already revealed on load just appears.
-			initial={
-				justRevealed ? { opacity: 0, scale: 0.94 } : { opacity: 0, y: 8 }
-			}
-			animate={{ opacity: 1, scale: 1, y: 0 }}
-			transition={
-				justRevealed
-					? { type: "spring", stiffness: 260, damping: 18 }
-					: { duration: 0.2 }
-			}
-			className="relative flex flex-col gap-3 border-2 border-rule p-4"
-		>
-			{justRevealed && <RevealBurst />}
-			<div className="flex items-center gap-2">
-				<span
-					className={`grid size-6 place-items-center rounded-full ${
-						round.missed
-							? "bg-muted text-muted-foreground"
-							: round.correct
-								? "bg-brand text-brand-foreground"
-								: "bg-foreground text-background"
-					}`}
-				>
-					{round.missed ? (
-						<ClockIcon className="size-3.5" />
-					) : round.correct ? (
-						<CheckIcon className="size-3.5" />
-					) : (
-						<XIcon className="size-3.5" />
-					)}
-				</span>
-				{/* Never showing a verdict to someone who didn't guess — missing the
-				    window isn't the same as being wrong. */}
-				<p className="text-lg font-display font-extrabold tracking-tight">
-					{round.missed ? "Missed it" : round.correct ? "Got it" : "Nope"}
-				</p>
-				{round.points > 0 && (
-					<span className="ml-auto font-mono text-sm font-bold tabular-nums">
-						+{round.points}
-					</span>
-				)}
-			</div>
-			<div className="flex items-center gap-2.5">
-				<motion.div
-					initial={justRevealed ? { scale: 0, rotate: -25 } : false}
-					animate={{ scale: 1, rotate: 0 }}
-					transition={{
-						type: "spring",
-						stiffness: 300,
-						damping: 16,
-						delay: justRevealed ? 0.35 : 0,
-					}}
-				>
-					<Avatar>
-						{round.answer.image && (
-							<AvatarImage src={round.answer.image} alt={round.answer.name} />
+		<div className="flex shrink-0 flex-col gap-3">
+			<motion.div
+				// A round that flips while you're watching gets the full treatment;
+				// one that was already revealed on load just appears.
+				initial={
+					justRevealed ? { opacity: 0, scale: 0.94 } : { opacity: 0, y: 8 }
+				}
+				animate={{ opacity: 1, scale: 1, y: 0 }}
+				transition={
+					justRevealed
+						? { type: "spring", stiffness: 260, damping: 18 }
+						: { duration: 0.2 }
+				}
+				className="relative flex flex-col gap-3 border-2 border-rule p-4"
+			>
+				{justRevealed && <RevealBurst />}
+				<div className="flex items-center gap-2">
+					<span
+						className={`grid size-6 place-items-center rounded-full ${
+							round.missed
+								? "bg-muted text-muted-foreground"
+								: round.correct
+									? "bg-brand text-brand-foreground"
+									: "bg-foreground text-background"
+						}`}
+					>
+						{round.missed ? (
+							<ClockIcon className="size-3.5" />
+						) : round.correct ? (
+							<CheckIcon className="size-3.5" />
+						) : (
+							<XIcon className="size-3.5" />
 						)}
-						<AvatarFallback>
-							{round.answer.name.charAt(0).toUpperCase()}
-						</AvatarFallback>
-					</Avatar>
-				</motion.div>
-				<p className="text-sm">
-					It was <span className="font-bold">{round.answer.name}</span>
-					{!round.correct && round.guessed && (
-						<span className="text-muted-foreground">
-							{" "}
-							— you said {round.guessed.name}
+					</span>
+					{/* Never showing a verdict to someone who didn't guess — missing the
+				    window isn't the same as being wrong. */}
+					<p className="text-lg font-display font-extrabold tracking-tight">
+						{round.missed ? "Missed it" : round.correct ? "Got it" : "Nope"}
+					</p>
+					{round.points > 0 && (
+						<span className="ml-auto font-mono text-sm font-bold tabular-nums">
+							+{round.points}
 						</span>
 					)}
-					{round.missed && (
-						<span className="text-muted-foreground">
-							{" "}
-							— you didn't guess in time
-						</span>
-					)}
-				</p>
-			</div>
-			<div className="flex items-center justify-between gap-3">
-				<ShareResult
-					roundNumber={round.roundNumber}
-					correct={round.correct}
-					missed={round.missed}
-					streak={round.streak}
-				/>
-				<span className="font-mono text-xs text-muted-foreground">
-					streak {round.streak}
-				</span>
-			</div>
+				</div>
+				<div className="flex items-center gap-2.5">
+					<motion.div
+						initial={justRevealed ? { scale: 0, rotate: -25 } : false}
+						animate={{ scale: 1, rotate: 0 }}
+						transition={{
+							type: "spring",
+							stiffness: 300,
+							damping: 16,
+							delay: justRevealed ? 0.35 : 0,
+						}}
+					>
+						<Avatar>
+							{round.answer.image && (
+								<AvatarImage src={round.answer.image} alt={round.answer.name} />
+							)}
+							<AvatarFallback>
+								{round.answer.name.charAt(0).toUpperCase()}
+							</AvatarFallback>
+						</Avatar>
+					</motion.div>
+					<p className="text-sm">
+						It was <span className="font-bold">{round.answer.name}</span>
+						{!round.correct && round.guessed && (
+							<span className="text-muted-foreground">
+								{" "}
+								— you said {round.guessed.name}
+							</span>
+						)}
+						{round.missed && (
+							<span className="text-muted-foreground">
+								{" "}
+								— you didn't guess in time
+							</span>
+						)}
+					</p>
+				</div>
+				<div className="flex items-center justify-between gap-3">
+					<ShareResult
+						roundNumber={round.roundNumber}
+						correct={round.correct}
+						missed={round.missed}
+						streak={round.streak}
+					/>
+					<span className="font-mono text-xs text-muted-foreground">
+						streak {round.streak}
+					</span>
+				</div>
+			</motion.div>
+
+			{/* Banking is the action this screen hands you next, so it sits below
+			    the verdict card as its own block rather than inside it. */}
 			<InlineSongBank />
-		</motion.div>
+		</div>
 	);
 }
 
@@ -682,7 +736,7 @@ function SubmitterBody({
 	round: Extract<FeedEntry["round"], { state: "submitter" }>;
 }) {
 	return (
-		<div className="flex flex-col gap-3 border-2 border-rule p-4">
+		<div className="flex shrink-0 flex-col gap-3 border-2 border-rule p-3">
 			<div className="flex items-center justify-between gap-3">
 				<p className="font-display font-extrabold tracking-tight">
 					Your song 👀
@@ -697,46 +751,60 @@ function SubmitterBody({
 					{round.fooled} fooled
 				</motion.span>
 			</div>
+
 			{round.guesses.length === 0 ? (
 				<p className="font-mono text-sm text-muted-foreground">
 					Nobody's guessed yet.
 				</p>
 			) : (
-				<ul className="flex flex-col gap-2">
+				// Faces, not rows. One row per guesser grew without limit and was
+				// what pushed this panel past the viewport in a big room; a
+				// wrapping grid of avatars holds a dozen people in two rows, and
+				// reads faster besides — you're scanning for who you got.
+				<ul className="flex flex-wrap gap-2">
 					<AnimatePresence initial={false}>
 						{round.guesses.map((row) => (
 							<motion.li
 								key={row.name}
-								initial={{ opacity: 0, x: -8 }}
-								animate={{ opacity: 1, x: 0 }}
-								className="flex items-center justify-between gap-2"
+								initial={{ opacity: 0, scale: 0.8 }}
+								animate={{ opacity: 1, scale: 1 }}
+								transition={{ type: "spring", stiffness: 400, damping: 22 }}
+								className="relative"
+								title={`${row.name} — ${row.correct ? "got it" : "fooled"}`}
 							>
-								<div className="flex min-w-0 items-center gap-2">
-									<Avatar className="size-6">
-										{row.image && (
-											<AvatarImage src={row.image} alt={row.name} />
-										)}
-										<AvatarFallback>
-											{row.name.charAt(0).toUpperCase()}
-										</AvatarFallback>
-									</Avatar>
-									<span className="truncate text-sm font-medium">
-										{row.name}
-									</span>
-								</div>
-								<span className="shrink-0 font-mono text-xs tracking-widest uppercase text-muted-foreground">
-									{row.correct ? "got it" : "fooled"}
+								<Avatar className="size-9 border-2 border-rule">
+									{row.image && <AvatarImage src={row.image} alt={row.name} />}
+									<AvatarFallback>
+										{row.name.charAt(0).toUpperCase()}
+									</AvatarFallback>
+								</Avatar>
+								<span
+									className={`absolute -right-1 -bottom-1 grid size-4 place-items-center rounded-full border-2 border-rule ${
+										row.correct
+											? "bg-foreground text-background"
+											: "bg-brand text-brand-foreground"
+									}`}
+								>
+									{row.correct ? (
+										<CheckIcon className="size-2.5" />
+									) : (
+										<XIcon className="size-2.5" />
+									)}
+								</span>
+								<span className="sr-only">
+									{row.name} {row.correct ? "got it" : "was fooled"}
 								</span>
 							</motion.li>
 						))}
 					</AnimatePresence>
 				</ul>
 			)}
-			{round.waitingOn > 0 && (
-				<p className="font-mono text-xs text-muted-foreground">
-					{round.waitingOn} still to guess.
-				</p>
-			)}
+
+			<p className="font-mono text-xs text-muted-foreground">
+				<XIcon className="mb-0.5 inline size-3 text-brand" /> fooled ·{" "}
+				<CheckIcon className="mb-0.5 inline size-3" /> got it
+				{round.waitingOn > 0 && ` · ${round.waitingOn} still to guess`}
+			</p>
 		</div>
 	);
 }
@@ -750,7 +818,9 @@ function DonePanel({ remaining, index }: { remaining: number; index: number }) {
 				whileInView={{ scale: 1, opacity: 1 }}
 				viewport={{ once: false, amount: 0.6 }}
 				transition={{ type: "spring", stiffness: 260, damping: 20 }}
-				className="flex flex-col items-center gap-4 text-center"
+				// `m-auto` centres it in the panel column, which no longer centres
+				// its children itself — a play panel fills its height instead.
+				className="m-auto flex flex-col items-center gap-4 text-center"
 			>
 				<motion.span
 					animate={done ? { rotate: [0, -8, 8, 0] } : {}}
@@ -791,7 +861,7 @@ function DonePanel({ remaining, index }: { remaining: number; index: number }) {
 function EmptyPanel() {
 	return (
 		<Shell index={0}>
-			<div className="flex flex-col items-center gap-3 text-center">
+			<div className="m-auto flex flex-col items-center gap-3 text-center">
 				<h2 className="text-3xl font-display font-extrabold tracking-tight leading-[0.95]">
 					Nothing playing
 				</h2>
