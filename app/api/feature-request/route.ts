@@ -46,7 +46,7 @@ export async function POST(request: Request) {
 			"feature request submitted but ADMIN_INGEST_URL/INGEST_SHARED_SECRET unset",
 		);
 		return NextResponse.json(
-			{ error: "Feature requests aren't switched on right now." },
+			{ error: "Feature requests are switched off right now." },
 			{ status: 503 },
 		);
 	}
@@ -62,18 +62,21 @@ export async function POST(request: Request) {
 
 	if (!title || title.length > FIELD_LIMITS.title) {
 		return NextResponse.json(
-			{ error: `Give it a title, up to ${FIELD_LIMITS.title} characters.` },
+			{ error: `Give it a title, ${FIELD_LIMITS.title} characters or less.` },
 			{ status: 400 },
 		);
 	}
 	if (!body || body.length > FIELD_LIMITS.body) {
 		return NextResponse.json(
-			{ error: `Describe it, up to ${FIELD_LIMITS.body} characters.` },
+			{ error: `Tell me about it, ${FIELD_LIMITS.body} characters or less.` },
 			{ status: 400 },
 		);
 	}
 	if (category && !CATEGORIES.has(category)) {
-		return NextResponse.json({ error: "Unknown category." }, { status: 400 });
+		return NextResponse.json(
+			{ error: "That category doesn't exist." },
+			{ status: 400 },
+		);
 	}
 
 	if (!allowFiling(session.user.id)) {
@@ -100,8 +103,8 @@ export async function POST(request: Request) {
 			{
 				duplicate: result.duplicate,
 				message: result.duplicate
-					? "You've already sent this one."
-					: "Thanks — check your email.",
+					? "You already sent me this one."
+					: "Got it. Check your email.",
 			},
 			{ status: result.duplicate ? 200 : 201 },
 		);
@@ -117,8 +120,8 @@ export async function POST(request: Request) {
 			{
 				error:
 					result.status === 503
-						? "The request desk is down — try again shortly."
-						: "We couldn't file that just now.",
+						? "The request desk is down. Give it a minute."
+						: "That didn't send. Have another go?",
 			},
 			{ status: result.status === 503 ? 503 : 502 },
 		);
@@ -130,7 +133,7 @@ export async function POST(request: Request) {
 	return NextResponse.json(
 		{
 			error:
-				"It may have gone through — check your email before sending it again.",
+				"That might have gone through. Check your email before you send it again.",
 		},
 		{ status: 504 },
 	);

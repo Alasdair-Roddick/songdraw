@@ -57,23 +57,23 @@ export function FeatureRequestForm({ email }: { email: string }) {
 		setSending(false);
 
 		if (!res) {
-			setError("Couldn't reach the server — check your connection.");
+			setError("Couldn't reach the server. Check your connection?");
 			return;
 		}
 
 		const payload = await res.json().catch(() => null);
 		if (!res.ok) {
-			setError(payload?.error ?? "We couldn't file that just now.");
+			setError(payload?.error ?? "That didn't send. Have another go?");
 			return;
 		}
 
 		if (payload?.duplicate) {
 			// Same key, same text: the console already had it. Nothing was sent
 			// a second time, and saying so beats a silent success.
-			toast.info("You've already sent this one.");
+			toast.info("You already sent me this one.");
 		} else {
-			toast.success("Feature request sent", {
-				description: `We'll reply to ${email}.`,
+			toast.success("Sent!", {
+				description: `I'll reply to ${email}.`,
 			});
 		}
 
@@ -94,11 +94,11 @@ export function FeatureRequestForm({ email }: { email: string }) {
 				</span>
 				<div className="space-y-1.5">
 					<h2 className="font-display text-2xl font-extrabold tracking-tight">
-						Sent
+						Sent!
 					</h2>
 					<p className="font-mono text-sm text-muted-foreground">
-						A confirmation is on its way to {email}. You'll hear back there when
-						it's picked up.
+						There's a confirmation on its way to {email}. I'll email you again
+						once I've had a look.
 					</p>
 				</div>
 				<Button
@@ -195,10 +195,10 @@ export function FeatureRequestForm({ email }: { email: string }) {
 					disabled={!ready || sending}
 				>
 					{sending && <LoaderCircleIcon className="animate-spin" />}
-					{sending ? "Sending" : "Send request"}
+					{sending ? "Sending" : "Send it"}
 				</Button>
 				<p className="font-mono text-xs text-muted-foreground">
-					We'll email {email} to confirm, and again when it's picked up.
+					I'll email {email} to confirm, and again once I've had a look.
 				</p>
 			</div>
 		</form>
