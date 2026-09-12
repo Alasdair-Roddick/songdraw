@@ -35,4 +35,15 @@ if [ -n "${ADMIN_API_TOKEN:-}" ]; then
 	fi
 fi
 
+# Feature-request ingest is opt-in too, and its secret is its own.
+if [ -n "${INGEST_SHARED_SECRET:-}" ]; then
+	require_secret INGEST_SHARED_SECRET
+	if [ "$INGEST_SHARED_SECRET" = "$CRON_TOKEN" ] || \
+	   [ "$INGEST_SHARED_SECRET" = "${ADMIN_API_TOKEN:-}" ]; then
+		echo "INGEST_SHARED_SECRET must differ from CRON_TOKEN and ADMIN_API_TOKEN" >&2
+		exit 1
+	fi
+	require_value ADMIN_INGEST_URL
+fi
+
 exec node server.js

@@ -1,6 +1,7 @@
 "use client";
 
 import { MoonIcon, SunIcon } from "lucide-react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useTheme } from "next-themes";
 import { useEffect, useState } from "react";
@@ -87,6 +88,9 @@ export function UserMenu({
 				>
 					<DropdownMenuItem onSelect={() => setSettingsOpen(true)}>
 						Settings
+					</DropdownMenuItem>
+					<DropdownMenuItem asChild>
+						<Link href="/feature-request">Feature request</Link>
 					</DropdownMenuItem>
 					<DarkroomToggle />
 					<DropdownMenuSeparator />
