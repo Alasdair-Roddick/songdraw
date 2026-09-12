@@ -63,11 +63,11 @@ the one that is checked.
 
 | Status | Meaning | What the player sees |
 |---|---|---|
-| `201` | Filed; the acknowledgement email has gone out | "Thanks — check your email." |
-| `200` | `duplicate: true`; a retry, nothing was sent again | "You've already sent this one." |
-| `401` / `409` / `413` / `422` | Rejected | "We couldn't file that just now." (502 from us; reason logged) |
-| `503` | The console is misconfigured — **retry** | "The request desk is down — try again shortly." (503 from us) |
-| *no answer* | It may well have been filed | "It may have gone through — check your email before sending it again." (504 from us) |
+| `201` | Filed; the acknowledgement email has gone out | "Got it. Check your email." |
+| `200` | `duplicate: true`; a retry, nothing was sent again | "You already sent me this one." |
+| `401` / `409` / `413` / `422` | Rejected | "That didn't send. Have another go?" (502 from us; reason logged) |
+| `503` | The console is misconfigured — **retry** | "The request desk is down. Give it a minute." (503 from us) |
+| *no answer* | It may well have been filed | "That might have gone through. Check your email before you send it again." (504 from us) |
 
 A timeout is **not** a refusal, and is never retried under a fresh
 `externalId`: that files a second copy.

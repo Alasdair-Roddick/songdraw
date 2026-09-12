@@ -20,10 +20,10 @@ export default async function FeatureRequestPage() {
 						Feature request
 					</p>
 					<h1 className="font-display text-4xl font-extrabold tracking-tight">
-						Ask for something
+						Ask me for something
 					</h1>
 					<p className="font-mono text-sm text-muted-foreground">
-						Broken, missing or annoying — all three belong here.
+						Broken, missing or just annoying. All fair game.
 					</p>
 				</div>
 				{/* The email is the session's, never a field: it is where the reply

@@ -1,6 +1,6 @@
 "use client";
 
-import { MoonIcon, SunIcon } from "lucide-react";
+import { LightbulbIcon, MoonIcon, SettingsIcon, SunIcon } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useTheme } from "next-themes";
@@ -87,10 +87,14 @@ export function UserMenu({
 					className="rounded-(--radius-frame) border-2 border-rule"
 				>
 					<DropdownMenuItem onSelect={() => setSettingsOpen(true)}>
+						<SettingsIcon />
 						Settings
 					</DropdownMenuItem>
 					<DropdownMenuItem asChild>
-						<Link href="/feature-request">Feature request</Link>
+						<Link href="/feature-request">
+							<LightbulbIcon />
+							Feature request
+						</Link>
 					</DropdownMenuItem>
 					<DarkroomToggle />
 					<DropdownMenuSeparator />
