@@ -2,6 +2,7 @@ import { and, asc, eq, ne } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { game, gameMember } from "@/lib/db/game";
 import { account, session, user } from "@/lib/db/schema";
+import { setGameStatus } from "@/lib/moderation";
 
 /**
  * Closing an account without destroying everyone else's game.
@@ -36,7 +37,9 @@ export async function closeAccount(userId: string) {
 		const owned = await tx
 			.select({ id: game.id })
 			.from(game)
-			.where(eq(game.ownerId, userId));
+			.where(eq(game.ownerId, userId))
+			.orderBy(asc(game.id))
+			.for("update");
 
 		for (const ownedGame of owned) {
 			const [heir] = await tx
@@ -67,10 +70,7 @@ export async function closeAccount(userId: string) {
 				// Last one out. Archiving rather than deleting keeps the room's
 				// history readable; anything but 'active' drops it from the nightly
 				// draw (see app/api/internal/draw/route.ts).
-				await tx
-					.update(game)
-					.set({ status: "archived" })
-					.where(eq(game.id, ownedGame.id));
+				await setGameStatus(tx, ownedGame.id, "archived");
 			}
 		}
 

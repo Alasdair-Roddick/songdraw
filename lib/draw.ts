@@ -5,6 +5,7 @@ import { bankSong } from "@/lib/db/bank";
 import { gameMember } from "@/lib/db/game";
 import { guess, round, statSnapshot } from "@/lib/db/round";
 import { MIN_MEMBERS } from "@/lib/game-rules";
+import type { Database, RowChange } from "@/lib/mutation";
 import { previousDate } from "@/lib/round-date";
 
 // Seeded so a given (game, date) always draws the same song no matter how many
@@ -40,8 +41,10 @@ export type DrawResult =
 export async function drawForGame(
 	gameId: string,
 	roundDate: string,
+	database: Database = db,
+	changes: RowChange[] = [],
 ): Promise<DrawResult> {
-	return db.transaction(async (tx) => {
+	return database.transaction(async (tx) => {
 		const existing = await tx
 			.select({ id: round.id })
 			.from(round)
@@ -106,7 +109,7 @@ export async function drawForGame(
 		// FOR UPDATE serialises the second draw behind the first, and re-reading
 		// the status inside the lock is what makes it a claim rather than a guess.
 		const [claimed] = await tx
-			.select({ status: bankSong.status })
+			.select()
 			.from(bankSong)
 			.where(eq(bankSong.id, bankSongId))
 			.for("update")
@@ -125,7 +128,7 @@ export async function drawForGame(
 			// Belt and braces against two jobs racing past the check above; the
 			// unique (game_id, round_date) index is the real guarantee.
 			.onConflictDoNothing({ target: [round.gameId, round.roundDate] })
-			.returning({ id: round.id });
+			.returning();
 
 		if (!created) {
 			const [row] = await tx
@@ -138,10 +141,15 @@ export async function drawForGame(
 
 		// Spend the song in the same transaction, so it can never be drawn twice
 		// — by this game tomorrow or by another game later today.
-		await tx
+		const [spent] = await tx
 			.update(bankSong)
 			.set({ status: "played" })
-			.where(eq(bankSong.id, bankSongId));
+			.where(eq(bankSong.id, bankSongId))
+			.returning();
+		changes.push(
+			{ table: "round", before: null, after: created },
+			{ table: "bank_song", before: claimed, after: spent },
+		);
 
 		return { status: "created", roundId: created.id } as const;
 	});
@@ -155,8 +163,12 @@ export async function drawForGame(
  * Only ever selects `open` rounds and flips them closed in the same
  * transaction, so re-running the job can't double-count a streak.
  */
-export async function closeRoundsBefore(today: string) {
-	const stale = await db
+export async function closeRoundsBefore(
+	today: string,
+	database: Database = db,
+	changes: RowChange[] = [],
+) {
+	const stale = await database
 		.select({
 			id: round.id,
 			gameId: round.gameId,
@@ -173,7 +185,7 @@ export async function closeRoundsBefore(today: string) {
 		// replay docs/runbook.md tells you to run to recover. The round flips to
 		// `closed` in the same transaction, so a wrong settlement can't be replayed
 		// away.
-		.orderBy(asc(round.roundDate));
+		.orderBy(asc(round.gameId), asc(round.roundDate));
 
 	// Grouped by game, because streak continuity is per (game, user): only the
 	// order *within* a game matters, and different games can settle in parallel.
@@ -201,7 +213,7 @@ export async function closeRoundsBefore(today: string) {
 		// settling day 2 before day 1 has committed breaks every streak that spans
 		// them — and since each round flips to `closed` in the same transaction, a
 		// wrong settlement can never be replayed away.
-		await db.transaction(async (tx) => {
+		await database.transaction(async (tx) => {
 			await tx.execute(
 				sql`select pg_advisory_xact_lock(hashtext(${`songdraw:close:${gameId}`}))`,
 			);
@@ -211,14 +223,19 @@ export async function closeRoundsBefore(today: string) {
 				// between our select and acquiring the lock; the outer `status =
 				// 'open'` filter was evaluated before either was true.
 				const [stillOpen] = await tx
-					.select({ id: round.id })
+					.select()
 					.from(round)
 					.where(and(eq(round.id, staleRound.id), eq(round.status, "open")))
 					.for("update")
 					.limit(1);
 				if (!stillOpen) continue;
 
-				await settleRound(tx, staleRound);
+				await settleRound(tx, staleRound, changes);
+				changes.push({
+					table: "round",
+					before: stillOpen,
+					after: { ...stillOpen, status: "closed" },
+				});
 				closed += 1;
 			}
 		});
@@ -238,6 +255,7 @@ type StaleRound = {
 async function settleRound(
 	tx: Parameters<Parameters<typeof db.transaction>[0]>[0],
 	staleRound: StaleRound,
+	changes: RowChange[],
 ) {
 	const members = await tx
 		.select({ id: gameMember.id, userId: gameMember.userId })
@@ -261,43 +279,54 @@ async function settleRound(
 		const didPlay =
 			played.has(member.userId) || member.userId === staleRound.submitterUserId;
 
-		const [stat] = await tx
-			.select()
-			.from(statSnapshot)
-			.where(
-				and(
-					eq(statSnapshot.gameId, staleRound.gameId),
-					eq(statSnapshot.userId, member.userId),
-				),
-			)
-			.limit(1);
-
-		// A streak continues only if the previous day was also played;
-		// any gap restarts it at 1.
-		const continues = stat?.lastPlayedDate === yesterday;
-		const currentStreak = didPlay
-			? continues
-				? stat.currentStreak + 1
-				: 1
-			: 0;
-		const bestStreak = Math.max(stat?.bestStreak ?? 0, currentStreak);
-		const lastPlayedDate = didPlay
-			? staleRound.roundDate
-			: (stat?.lastPlayedDate ?? null);
-
-		await tx
-			.insert(statSnapshot)
-			.values({
-				gameId: staleRound.gameId,
-				userId: member.userId,
-				currentStreak,
-				bestStreak,
-				lastPlayedDate,
-			})
-			.onConflictDoUpdate({
-				target: [statSnapshot.gameId, statSnapshot.userId],
-				set: { currentStreak, bestStreak, lastPlayedDate },
-			});
+		// Lock before taking the evidence image. Today's guesses may update this
+		// same stat while an operator catches up older rounds. If a guess creates
+		// a previously absent row first, retry the read instead of recording a
+		// fictitious insert over an ON CONFLICT update.
+		while (true) {
+			const [stat] = await tx
+				.select()
+				.from(statSnapshot)
+				.where(
+					and(
+						eq(statSnapshot.gameId, staleRound.gameId),
+						eq(statSnapshot.userId, member.userId),
+					),
+				)
+				.for("update")
+				.limit(1);
+			const continues = stat?.lastPlayedDate === yesterday;
+			const currentStreak = didPlay
+				? continues
+					? stat.currentStreak + 1
+					: 1
+				: 0;
+			const bestStreak = Math.max(stat?.bestStreak ?? 0, currentStreak);
+			const lastPlayedDate = didPlay
+				? staleRound.roundDate
+				: (stat?.lastPlayedDate ?? null);
+			const streaks = { currentStreak, bestStreak, lastPlayedDate };
+			const [after] = stat
+				? await tx
+						.update(statSnapshot)
+						.set(streaks)
+						.where(eq(statSnapshot.id, stat.id))
+						.returning()
+				: await tx
+						.insert(statSnapshot)
+						.values({
+							gameId: staleRound.gameId,
+							userId: member.userId,
+							...streaks,
+						})
+						.onConflictDoNothing({
+							target: [statSnapshot.gameId, statSnapshot.userId],
+						})
+						.returning();
+			if (!after) continue;
+			changes.push({ table: "stat_snapshot", before: stat ?? null, after });
+			break;
+		}
 	}
 
 	await tx

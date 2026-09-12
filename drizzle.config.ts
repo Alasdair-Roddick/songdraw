@@ -12,6 +12,7 @@ if (!databaseUrl) throw new Error("DATABASE_URL is required");
 export default defineConfig({
 	schema: [
 		"./lib/db/schema.ts",
+		"./lib/db/admin.ts",
 		"./lib/db/track-asset.ts",
 		"./lib/db/game.ts",
 		"./lib/db/bank.ts",

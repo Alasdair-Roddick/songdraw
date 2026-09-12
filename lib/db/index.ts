@@ -1,12 +1,14 @@
 import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
+import * as adminSchema from "./admin";
 import * as bankSchema from "./bank";
 import * as gameSchema from "./game";
 import * as roundSchema from "./round";
 import * as authSchema from "./schema";
 import * as trackAssetSchema from "./track-asset";
 
-const schema = {
+export const schema = {
+	...adminSchema,
 	...authSchema,
 	...trackAssetSchema,
 	...gameSchema,

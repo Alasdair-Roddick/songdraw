@@ -65,10 +65,12 @@ async function broadcast(topic: string, event: string) {
 }
 
 export async function notifyUser(userId: string, event: string) {
+	if (!CHANNEL_SECRET) return;
 	await broadcast(userChannel(userId), event);
 }
 
 /** Ping every member of a game — a guess, a draw, a roster change. */
 export async function notifyGame(gameId: string, event: string) {
+	if (!CHANNEL_SECRET) return;
 	await broadcast(gameChannel(gameId), event);
 }
