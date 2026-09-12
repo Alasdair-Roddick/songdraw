@@ -34,7 +34,9 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
+import { UsernameHint } from "@/components/username-hint";
 import { authClient } from "@/lib/auth-client";
+import { usernameError } from "@/lib/username";
 
 function initialsFor(name: string) {
 	return name
@@ -141,6 +143,11 @@ export function SettingsDialog({
 
 	async function handleNameSave() {
 		setNameError(null);
+		const validationError = usernameError(name);
+		if (validationError) {
+			setNameError(validationError);
+			return;
+		}
 		setNameSaving(true);
 		const { error } = await authClient.updateUser({ name });
 		setNameSaving(false);
@@ -266,12 +273,18 @@ export function SettingsDialog({
 					<Separator />
 
 					<div className="flex flex-col gap-2">
-						<Label htmlFor="settings-name">Display name</Label>
+						<Label htmlFor="settings-name">Username</Label>
 						<div className="flex gap-2">
 							<div className="relative flex-1">
 								<UserIcon className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
 								<Input
 									id="settings-name"
+									autoComplete="username"
+									autoCapitalize="none"
+									autoCorrect="off"
+									spellCheck={false}
+									aria-describedby="settings-username-hint"
+									aria-invalid={name.length > 0 && !!usernameError(name)}
 									className="h-10 pl-9"
 									value={name}
 									onChange={(e) => setName(e.target.value)}
@@ -281,13 +294,16 @@ export function SettingsDialog({
 								type="button"
 								variant="outline"
 								size="lg"
-								disabled={nameSaving || !name.trim() || name === initialName}
+								disabled={
+									nameSaving || !!usernameError(name) || name === initialName
+								}
 								onClick={handleNameSave}
 							>
 								{nameSaving && <LoaderCircleIcon className="animate-spin" />}
 								Save
 							</Button>
 						</div>
+						<UsernameHint name={name} id="settings-username-hint" />
 						<ErrorText error={nameError} />
 					</div>
 

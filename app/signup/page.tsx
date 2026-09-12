@@ -26,13 +26,15 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { UsernameHint } from "@/components/username-hint";
 import { signUp } from "@/lib/auth-client";
 import { avatarUrl, randomAvatarSeed } from "@/lib/avatar";
+import { usernameError } from "@/lib/username";
 import { cn } from "@/lib/utils";
 
 const STEP_TITLES = [
 	"Create your account",
-	"Choose your name",
+	"Choose your username",
 	"Pick your look",
 ];
 
@@ -55,6 +57,7 @@ export default function SignupPage() {
 	const [email, setEmail] = useState("");
 	const [password, setPassword] = useState("");
 	const [name, setName] = useState("");
+	const nameError = usernameError(name);
 
 	const [seeds, setSeeds] = useState<string[]>(() => makeSeeds());
 	const [selectedSeed, setSelectedSeed] = useState<string | null>(null);
@@ -95,6 +98,10 @@ export default function SignupPage() {
 	async function handleFinish(e: React.FormEvent) {
 		e.preventDefault();
 		setError(null);
+		if (nameError) {
+			go(1);
+			return;
+		}
 		setLoading(true);
 
 		// Sign up with the generated avatar as a baseline — if a photo was
@@ -208,15 +215,20 @@ export default function SignupPage() {
 								transition={{ duration: 0.2 }}
 								onSubmit={(e) => {
 									e.preventDefault();
-									go(2);
+									if (!nameError) go(2);
 								}}
 								className="flex flex-col gap-4"
 							>
 								<div className="flex flex-col gap-2">
-									<Label htmlFor="name">Display name</Label>
+									<Label htmlFor="name">Username</Label>
 									<Input
 										id="name"
-										autoComplete="nickname"
+										autoComplete="username"
+										autoCapitalize="none"
+										autoCorrect="off"
+										spellCheck={false}
+										aria-describedby="signup-username-hint"
+										aria-invalid={name.length > 0 && !!nameError}
 										autoFocus
 										required
 										maxLength={32}
@@ -224,6 +236,7 @@ export default function SignupPage() {
 										value={name}
 										onChange={(e) => setName(e.target.value)}
 									/>
+									<UsernameHint name={name} id="signup-username-hint" />
 								</div>
 								<div className="flex gap-2">
 									<Button
@@ -239,6 +252,7 @@ export default function SignupPage() {
 										type="submit"
 										variant="brand"
 										className="h-12 flex-1 rounded-full text-base"
+										disabled={!!nameError}
 									>
 										Continue
 										<ArrowRightIcon />

@@ -91,7 +91,7 @@ export async function closeAccount(userId: string) {
 		await tx
 			.update(user)
 			.set({
-				name: `Former player ${suffix}`,
+				name: `Former_player_${suffix}`,
 				email: `deleted+${suffix}@songdraw.invalid`,
 				emailVerified: false,
 				image: null,
