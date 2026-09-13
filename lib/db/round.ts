@@ -12,7 +12,6 @@ import {
 import { bankSong } from "./bank";
 import { game, gameMember } from "./game";
 import { user } from "./schema";
-import { trackAsset } from "./track-asset";
 
 // One drawn song per game per day. `bankSongId` is the answer and must never
 // reach a guesser before the reveal unlocks — see lib/round.ts.

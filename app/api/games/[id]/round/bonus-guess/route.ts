@@ -3,7 +3,6 @@ import { headers } from "next/headers";
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { bankSong } from "@/lib/db/bank";
 import { bonusGuess, bonusRound, round, statSnapshot } from "@/lib/db/round";
 import {
 	BONUS_CLOSE_POINTS,
