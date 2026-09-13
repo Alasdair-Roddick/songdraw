@@ -12,6 +12,7 @@ import {
 import { bankSong } from "./bank";
 import { game, gameMember } from "./game";
 import { user } from "./schema";
+import { trackAsset } from "./track-asset";
 
 // One drawn song per game per day. `bankSongId` is the answer and must never
 // reach a guesser before the reveal unlocks — see lib/round.ts.
@@ -90,6 +91,8 @@ export const statSnapshot = pgTable(
 		foolPoints: integer("fool_points").notNull().default(0),
 		// Earned as a guesser, +100 per correct answer.
 		guessPoints: integer("guess_points").notNull().default(0),
+		// Earned from bonus round questions (year guesses etc.).
+		bonusPoints: integer("bonus_points").notNull().default(0),
 		// Last round date this user actually played, for streak continuity.
 		lastPlayedDate: date("last_played_date", { mode: "string" }),
 		updatedAt: timestamp("updated_at")
@@ -100,6 +103,57 @@ export const statSnapshot = pgTable(
 	(table) => [unique().on(table.gameId, table.userId)],
 );
 
+// A bonus question attached to a regular round. Not every round has one —
+// created at draw time with a ~30% chance when the track has a release year.
+export const bonusRound = pgTable("bonus_round", {
+	id: text("id")
+		.primaryKey()
+		.$defaultFn(() => crypto.randomUUID()),
+	roundId: text("round_id")
+		.notNull()
+		.references(() => round.id, { onDelete: "cascade" }),
+	// "year" for now; the column exists so the engine can grow new question
+	// types without a schema migration.
+	bonusType: text("bonus_type").notNull().default("year"),
+	// The correct answer as a string (e.g. "2005"). Typed as text so future
+	// bonus types aren't forced into an integer column.
+	answer: text("answer").notNull(),
+	createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const bonusGuess = pgTable(
+	"bonus_guess",
+	{
+		id: text("id")
+			.primaryKey()
+			.$defaultFn(() => crypto.randomUUID()),
+		bonusRoundId: text("bonus_round_id")
+			.notNull()
+			.references(() => bonusRound.id, { onDelete: "cascade" }),
+		userId: text("user_id")
+			.notNull()
+			.references(() => user.id, { onDelete: "cascade" }),
+		guessValue: text("guess_value").notNull(),
+		isCorrect: boolean("is_correct").notNull(),
+		points: integer("points").notNull().default(0),
+		createdAt: timestamp("created_at").defaultNow().notNull(),
+	},
+	(table) => [unique().on(table.bonusRoundId, table.userId)],
+);
+
+export const bonusRoundRelations = relations(bonusRound, ({ one, many }) => ({
+	round: one(round, { fields: [bonusRound.roundId], references: [round.id] }),
+	guesses: many(bonusGuess),
+}));
+
+export const bonusGuessRelations = relations(bonusGuess, ({ one }) => ({
+	bonusRound: one(bonusRound, {
+		fields: [bonusGuess.bonusRoundId],
+		references: [bonusRound.id],
+	}),
+	user: one(user, { fields: [bonusGuess.userId], references: [user.id] }),
+}));
+
 export const roundRelations = relations(round, ({ one, many }) => ({
 	game: one(game, { fields: [round.gameId], references: [game.id] }),
 	bankSong: one(bankSong, {
@@ -107,6 +161,7 @@ export const roundRelations = relations(round, ({ one, many }) => ({
 		references: [bankSong.id],
 	}),
 	guesses: many(guess),
+	bonusRound: one(bonusRound),
 }));
 
 export const guessRelations = relations(guess, ({ one }) => ({

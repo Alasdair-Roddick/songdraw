@@ -6,6 +6,7 @@ export interface Track {
 	album?: string;
 	artworkUrl?: string;
 	previewUrl?: string;
+	releaseDate?: string;
 }
 
 export interface MusicProvider {

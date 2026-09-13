@@ -3,8 +3,9 @@ import { and, asc, count, eq, lt, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { bankSong } from "@/lib/db/bank";
 import { gameMember } from "@/lib/db/game";
-import { guess, round, statSnapshot } from "@/lib/db/round";
-import { MIN_MEMBERS } from "@/lib/game-rules";
+import { bonusRound, guess, round, statSnapshot } from "@/lib/db/round";
+import { trackAsset } from "@/lib/db/track-asset";
+import { BONUS_CHANCE, MIN_MEMBERS } from "@/lib/game-rules";
 import type { Database, RowChange } from "@/lib/mutation";
 import { previousDate } from "@/lib/round-date";
 
@@ -150,6 +151,29 @@ export async function drawForGame(
 			{ table: "round", before: null, after: created },
 			{ table: "bank_song", before: claimed, after: spent },
 		);
+
+		// Roll for a bonus round. The same seeded RNG that picked the song
+		// decides, so the outcome is deterministic on replay.
+		if (rng() < BONUS_CHANCE) {
+			const [track] = await tx
+				.select({ releaseYear: trackAsset.releaseYear })
+				.from(trackAsset)
+				.innerJoin(bankSong, eq(bankSong.trackId, trackAsset.id))
+				.where(eq(bankSong.id, bankSongId))
+				.limit(1);
+
+			if (track?.releaseYear) {
+				const [bonus] = await tx
+					.insert(bonusRound)
+					.values({
+						roundId: created.id,
+						bonusType: "year",
+						answer: track.releaseYear.toString(),
+					})
+					.returning();
+				changes.push({ table: "bonus_round", before: null, after: bonus });
+			}
+		}
 
 		return { status: "created", roundId: created.id } as const;
 	});

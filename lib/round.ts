@@ -2,7 +2,13 @@ import { and, count, eq, lte, ne } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { bankSong } from "@/lib/db/bank";
 import { game, gameMember } from "@/lib/db/game";
-import { guess, round, statSnapshot } from "@/lib/db/round";
+import {
+	bonusGuess,
+	bonusRound,
+	guess,
+	round,
+	statSnapshot,
+} from "@/lib/db/round";
 import { user } from "@/lib/db/schema";
 import { trackAsset } from "@/lib/db/track-asset";
 import { revealHour } from "@/lib/game-rules";
@@ -23,6 +29,21 @@ export type TrackView = {
 
 export type MemberView = { id: string; name: string; image: string | null };
 
+// Bonus round state attached to any view that shows after the main guess.
+export type BonusView =
+	| null
+	// Bonus exists, viewer hasn't answered yet.
+	| { status: "unanswered"; bonusType: "year" }
+	// Viewer answered and got immediate feedback.
+	| {
+			status: "answered";
+			bonusType: "year";
+			correct: boolean;
+			close: boolean;
+			points: number;
+			answer: number;
+	  };
+
 export type RoundView =
 	| { state: "none" }
 	| {
@@ -32,6 +53,7 @@ export type RoundView =
 			guesses: { name: string; image: string | null; correct: boolean }[];
 			fooled: number;
 			waitingOn: number;
+			bonus: BonusView;
 	  }
 	// Pre-guess. Deliberately carries no ownership of any kind.
 	| { state: "guessing"; roundId: string; track: TrackView }
@@ -43,6 +65,7 @@ export type RoundView =
 			guessed: MemberView;
 			waitingOn: number;
 			revealAt: string;
+			bonus: BonusView;
 	  }
 	| {
 			state: "revealed";
@@ -59,6 +82,7 @@ export type RoundView =
 			streak: number;
 			answer: MemberView;
 			guessed: MemberView | null;
+			bonus: BonusView;
 	  };
 
 export type FeedEntry = {
@@ -70,6 +94,53 @@ export type FeedEntry = {
 	members: MemberView[];
 	round: RoundView;
 };
+
+async function bonusViewFor(
+	roundId: string,
+	viewerUserId: string,
+): Promise<BonusView> {
+	const [bonus] = await db
+		.select({
+			id: bonusRound.id,
+			bonusType: bonusRound.bonusType,
+			answer: bonusRound.answer,
+		})
+		.from(bonusRound)
+		.where(eq(bonusRound.roundId, roundId))
+		.limit(1);
+
+	if (!bonus) return null;
+
+	const [myBonus] = await db
+		.select({
+			isCorrect: bonusGuess.isCorrect,
+			points: bonusGuess.points,
+			guessValue: bonusGuess.guessValue,
+		})
+		.from(bonusGuess)
+		.where(
+			and(
+				eq(bonusGuess.bonusRoundId, bonus.id),
+				eq(bonusGuess.userId, viewerUserId),
+			),
+		)
+		.limit(1);
+
+	if (!myBonus) {
+		return { status: "unanswered", bonusType: "year" };
+	}
+
+	const correctYear = Number.parseInt(bonus.answer, 10);
+	const guessedYear = Number.parseInt(myBonus.guessValue, 10);
+	return {
+		status: "answered",
+		bonusType: "year",
+		correct: myBonus.isCorrect,
+		close: Math.abs(guessedYear - correctYear) === 1,
+		points: myBonus.points,
+		answer: correctYear,
+	};
+}
 
 /**
  * Builds the round payload for one viewer.
@@ -134,11 +205,18 @@ export async function roundViewFor(
 	// Your own song is up: you don't guess, you watch who you fooled. The
 	// submitter already knows the answer, so there's nothing to withhold.
 	if (today.submitterUserId === viewerUserId) {
-		const rows = await db
-			.select({ name: user.name, image: user.image, correct: guess.isCorrect })
-			.from(guess)
-			.innerJoin(user, eq(guess.guesserUserId, user.id))
-			.where(eq(guess.roundId, today.id));
+		const [rows, bonus] = await Promise.all([
+			db
+				.select({
+					name: user.name,
+					image: user.image,
+					correct: guess.isCorrect,
+				})
+				.from(guess)
+				.innerJoin(user, eq(guess.guesserUserId, user.id))
+				.where(eq(guess.roundId, today.id)),
+			bonusViewFor(today.id, viewerUserId),
+		]);
 
 		return {
 			state: "submitter",
@@ -147,6 +225,7 @@ export async function roundViewFor(
 			guesses: rows,
 			fooled: rows.filter((row) => !row.correct).length,
 			waitingOn,
+			bonus,
 		};
 	}
 
@@ -169,12 +248,15 @@ export async function roundViewFor(
 	// Locked in, waiting on the group or the clock. Still no ownership here —
 	// only the pick they made themselves, which they obviously already know.
 	if (mine && !revealed) {
-		const [picked] = await db
-			.select({ id: gameMember.id, name: user.name, image: user.image })
-			.from(gameMember)
-			.innerJoin(user, eq(gameMember.userId, user.id))
-			.where(eq(gameMember.id, mine.guessedMemberId))
-			.limit(1);
+		const [picked, bonus] = await Promise.all([
+			db
+				.select({ id: gameMember.id, name: user.name, image: user.image })
+				.from(gameMember)
+				.innerJoin(user, eq(gameMember.userId, user.id))
+				.where(eq(gameMember.id, mine.guessedMemberId))
+				.then((rows) => rows[0]),
+			bonusViewFor(today.id, viewerUserId),
+		]);
 
 		return {
 			state: "locked",
@@ -183,6 +265,7 @@ export async function roundViewFor(
 			guessed: picked,
 			waitingOn,
 			revealAt: revealInstant(today.roundDate, revealHour()).toISOString(),
+			bonus,
 		};
 	}
 
@@ -209,7 +292,7 @@ export async function roundViewFor(
 		guessed = row ?? null;
 	}
 
-	const [[{ roundNumber }], [stats]] = await Promise.all([
+	const [[{ roundNumber }], [stats], bonus] = await Promise.all([
 		db
 			.select({ roundNumber: count() })
 			.from(round)
@@ -229,6 +312,7 @@ export async function roundViewFor(
 				),
 			)
 			.limit(1),
+		bonusViewFor(today.id, viewerUserId),
 	]);
 
 	return {
@@ -248,6 +332,7 @@ export async function roundViewFor(
 			: 0,
 		answer,
 		guessed,
+		bonus,
 	};
 }
 

@@ -7,6 +7,7 @@ interface ITunesResult {
 	collectionName?: string;
 	artworkUrl100?: string;
 	previewUrl?: string;
+	releaseDate?: string;
 }
 
 export class ITunesProvider implements MusicProvider {
@@ -37,6 +38,7 @@ export class ITunesProvider implements MusicProvider {
 			album: item.collectionName,
 			artworkUrl: item.artworkUrl100?.replace("100x100", "1000x1000"),
 			previewUrl: item.previewUrl,
+			releaseDate: item.releaseDate,
 		}));
 	}
 }

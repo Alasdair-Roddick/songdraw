@@ -18,7 +18,7 @@ import { hasLiveRoundToday } from "@/lib/settled-rounds";
 // of the grid entirely and re-form as a stacked block, which is why the table
 // element had to go: a table can't reflow, so it could only ever scroll.
 const COLUMNS =
-	"sm:grid sm:grid-cols-[1fr_4.5rem_5.5rem_4.5rem_4.5rem] sm:items-center sm:gap-3";
+	"sm:grid sm:grid-cols-[1fr_4.5rem_5.5rem_4.5rem_4.5rem_4.5rem] sm:items-center sm:gap-3";
 
 function Stat({
 	label,
@@ -142,6 +142,7 @@ export default async function LeaderboardPage({
 								<span className="text-right">Points</span>
 								<span className="text-right">Accuracy</span>
 								<span className="text-right">Fooled</span>
+								<span className="text-right">Bonus</span>
 								<span className="text-right">Streak</span>
 							</div>
 							<ul className="divide-y-2 divide-rule">
@@ -168,7 +169,7 @@ export default async function LeaderboardPage({
 										</div>
 										{/* `sm:contents` promotes these four back into the row grid on
 								    wide screens; on mobile they stay a labelled 4-up strip. */}
-										<div className="mt-2 grid grid-cols-4 gap-2 sm:contents">
+										<div className="mt-2 grid grid-cols-5 gap-2 sm:contents">
 											<Stat label="Points" value={row.points} strong />
 											<Stat
 												label="Accuracy"
@@ -179,6 +180,7 @@ export default async function LeaderboardPage({
 												}
 											/>
 											<Stat label="Fooled" value={row.foolPoints} />
+											<Stat label="Bonus" value={row.bonusPoints} />
 											<Stat label="Streak" value={row.currentStreak} />
 										</div>
 									</li>

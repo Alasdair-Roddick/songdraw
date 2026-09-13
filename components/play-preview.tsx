@@ -123,6 +123,7 @@ function buildRound(
 				guessed: others[0],
 				waitingOn: Math.max(others.length - 2, 0),
 				revealAt: new Date(Date.now() + 3_600_000).toISOString(),
+				bonus: { status: "unanswered", bonusType: "year" },
 			};
 		case "revealed":
 			return {
@@ -136,14 +137,20 @@ function buildRound(
 				streak: 7,
 				answer: others[1] ?? others[0],
 				guessed: others[0],
+				bonus: {
+					status: "answered",
+					bonusType: "year",
+					correct: true,
+					close: false,
+					points: 50,
+					answer: 2005,
+				},
 			};
 		case "submitter":
 			return {
 				state,
 				roundId: "r1",
 				track,
-				// One entry per other member, so the avatar grid is exercised at
-				// the sizes where a per-guesser row list used to blow the panel out.
 				guesses: others.map((m, i) => ({
 					name: m.name,
 					image: m.image,
@@ -151,6 +158,7 @@ function buildRound(
 				})),
 				fooled: Math.max(others.length - Math.ceil(others.length / 4), 0),
 				waitingOn: 2,
+				bonus: { status: "unanswered", bonusType: "year" },
 			};
 	}
 }
@@ -213,6 +221,7 @@ export function PlayPreview() {
 						roster.find((m) => m.id === memberId) ?? roster[1] ?? roster[0],
 					waitingOn: 2,
 					revealAt: new Date(Date.now() + 3_600_000).toISOString(),
+					bonus: { status: "unanswered", bonusType: "year" } as const,
 				})}
 			/>
 
