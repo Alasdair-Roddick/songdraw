@@ -20,6 +20,11 @@ export const REPLAY_AFTER_ROUNDS = 5;
 export const CORRECT_POINTS = 100;
 export const FOOL_POINTS = 50;
 
+// Bonus round: ~30% of rounds get a trivia question when the track has metadata.
+export const BONUS_CHANCE = 0.3;
+export const BONUS_EXACT_POINTS = 50;
+export const BONUS_CLOSE_POINTS = 25;
+
 // Answers unlock at 17:00 Australia/Adelaide — or as soon as everyone has
 // guessed, whichever comes first. Guessing early no longer spoils the answer
 // for you, so the reveal is something the group arrives at together.

@@ -16,7 +16,7 @@ import { ShareResult } from "@/components/share-result";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { useFeed } from "@/hooks/use-feed";
-import type { FeedEntry, MemberView } from "@/lib/round";
+import type { BonusView, FeedEntry, MemberView } from "@/lib/round";
 
 export function RoundFeed({ channels }: { channels: string[] }) {
 	const { entries, isLoading, applyRound } = useFeed(channels);
@@ -401,11 +401,15 @@ function Panel({
 					submitGuess={submitGuess}
 				/>
 			)}
-			{round.state === "locked" && <LockedBody round={round} />}
+			{round.state === "locked" && (
+				<LockedBody round={round} gameId={entry.gameId} />
+			)}
 			{round.state === "revealed" && (
 				<RevealedBody round={round} justRevealed={justRevealed} />
 			)}
-			{round.state === "submitter" && <SubmitterBody round={round} />}
+			{round.state === "submitter" && (
+				<SubmitterBody round={round} gameId={entry.gameId} />
+			)}
 		</Shell>
 	);
 }
@@ -571,13 +575,135 @@ function GuessBody({
 	);
 }
 
+function BonusSection({ bonus, gameId }: { bonus: BonusView; gameId: string }) {
+	const [year, setYear] = useState("");
+	const [busy, setBusy] = useState(false);
+	const [result, setResult] = useState<{
+		correct: boolean;
+		close: boolean;
+		points: number;
+		answer: number;
+	} | null>(null);
+
+	if (!bonus) return null;
+
+	if (result || bonus.status === "answered") {
+		const data = result ?? {
+			correct: bonus.status === "answered" ? bonus.correct : false,
+			close: bonus.status === "answered" ? bonus.close : false,
+			points: bonus.status === "answered" ? bonus.points : 0,
+			answer: bonus.status === "answered" ? bonus.answer : 0,
+		};
+		return (
+			<motion.div
+				initial={{ opacity: 0, y: 6 }}
+				animate={{ opacity: 1, y: 0 }}
+				className="flex items-center justify-between border-2 border-rule p-3"
+			>
+				<div className="flex items-center gap-2">
+					<span
+						className={`grid size-5 place-items-center rounded-full ${
+							data.correct
+								? "bg-brand text-brand-foreground"
+								: data.close
+									? "bg-brand/60 text-brand-foreground"
+									: "bg-foreground text-background"
+						}`}
+					>
+						{data.correct ? (
+							<CheckIcon className="size-3" />
+						) : data.close ? (
+							<span className="text-[10px] font-bold">~</span>
+						) : (
+							<XIcon className="size-3" />
+						)}
+					</span>
+					<p className="text-sm">
+						{data.correct
+							? "Nailed the year"
+							: data.close
+								? "Off by one"
+								: "Wrong year"}
+						<span className="text-muted-foreground">
+							{" "}
+							— it was {data.answer}
+						</span>
+					</p>
+				</div>
+				{data.points > 0 && (
+					<motion.span
+						initial={{ scale: 1.3 }}
+						animate={{ scale: 1 }}
+						transition={{ type: "spring", stiffness: 400, damping: 22 }}
+						className="font-mono text-sm font-bold tabular-nums"
+					>
+						+{data.points}
+					</motion.span>
+				)}
+			</motion.div>
+		);
+	}
+
+	async function submitBonus() {
+		const parsed = Number.parseInt(year, 10);
+		if (!Number.isInteger(parsed) || busy) return;
+		setBusy(true);
+		try {
+			const res = await fetch(`/api/games/${gameId}/round/bonus-guess`, {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({ year: parsed }),
+			});
+			if (!res.ok) {
+				setBusy(false);
+				return;
+			}
+			const data = await res.json();
+			setResult(data);
+		} catch {
+			setBusy(false);
+		}
+	}
+
+	return (
+		<div className="flex items-center gap-2 border-2 border-rule p-3">
+			<p className="shrink-0 font-mono text-xs font-semibold tracking-widest uppercase text-muted-foreground">
+				Bonus
+			</p>
+			<p className="min-w-0 shrink text-sm">What year?</p>
+			<input
+				type="number"
+				inputMode="numeric"
+				placeholder="e.g. 2005"
+				value={year}
+				onChange={(e) => setYear(e.target.value)}
+				onKeyDown={(e) => {
+					if (e.key === "Enter") submitBonus();
+				}}
+				className="h-9 w-20 shrink-0 border-2 border-rule-strong bg-transparent px-2 text-center font-mono text-sm tabular-nums rounded-md focus:outline-none focus:ring-2 focus:ring-brand"
+			/>
+			<Button
+				type="button"
+				variant="brand"
+				className="h-9 shrink-0 rounded-full px-4 text-sm"
+				disabled={!year || busy}
+				onClick={submitBonus}
+			>
+				{busy ? "..." : "Go"}
+			</Button>
+		</div>
+	);
+}
+
 function LockedBody({
 	round,
+	gameId,
 }: {
 	round: Extract<FeedEntry["round"], { state: "locked" }>;
+	gameId: string;
 }) {
 	return (
-		<div className="shrink-0">
+		<div className="flex shrink-0 flex-col gap-2">
 			<div className="flex flex-col items-center gap-2 border-2 border-rule p-4">
 				<p className="font-mono text-xs font-semibold tracking-widest uppercase text-muted-foreground">
 					Locked in
@@ -599,6 +725,7 @@ function LockedBody({
 						: "Answer unlocking…"}
 				</p>
 			</div>
+			<BonusSection bonus={round.bonus} gameId={gameId} />
 		</div>
 	);
 }
@@ -703,10 +830,33 @@ function RevealedBody({
 						streak {round.streak}
 					</span>
 				</div>
+				{round.bonus?.status === "answered" && (
+					<div className="flex items-center justify-between border-t-2 border-rule pt-3">
+						<div className="flex items-center gap-2">
+							<span className="font-mono text-xs font-semibold tracking-widest uppercase text-muted-foreground">
+								Bonus
+							</span>
+							<p className="text-sm">
+								{round.bonus.correct
+									? "Nailed the year"
+									: round.bonus.close
+										? "Off by one"
+										: "Wrong year"}
+								<span className="text-muted-foreground">
+									{" "}
+									— {round.bonus.answer}
+								</span>
+							</p>
+						</div>
+						{round.bonus.points > 0 && (
+							<span className="font-mono text-sm font-bold tabular-nums">
+								+{round.bonus.points}
+							</span>
+						)}
+					</div>
+				)}
 			</motion.div>
 
-			{/* Banking is the action this screen hands you next, so it sits below
-			    the verdict card as its own block rather than inside it. */}
 			<InlineSongBank />
 		</div>
 	);
@@ -732,79 +882,82 @@ function RevealBurst() {
 
 function SubmitterBody({
 	round,
+	gameId,
 }: {
 	round: Extract<FeedEntry["round"], { state: "submitter" }>;
+	gameId: string;
 }) {
 	return (
-		<div className="flex shrink-0 flex-col gap-3 border-2 border-rule p-3">
-			<div className="flex items-center justify-between gap-3">
-				<p className="font-display font-extrabold tracking-tight">
-					Your song 👀
-				</p>
-				<motion.span
-					key={round.fooled}
-					initial={{ scale: 1.3 }}
-					animate={{ scale: 1 }}
-					transition={{ type: "spring", stiffness: 400, damping: 22 }}
-					className="font-mono text-sm font-bold tabular-nums"
-				>
-					{round.fooled} fooled
-				</motion.span>
-			</div>
+		<div className="flex shrink-0 flex-col gap-2">
+			<div className="flex flex-col gap-3 border-2 border-rule p-3">
+				<div className="flex items-center justify-between gap-3">
+					<p className="font-display font-extrabold tracking-tight">
+						Your song 👀
+					</p>
+					<motion.span
+						key={round.fooled}
+						initial={{ scale: 1.3 }}
+						animate={{ scale: 1 }}
+						transition={{ type: "spring", stiffness: 400, damping: 22 }}
+						className="font-mono text-sm font-bold tabular-nums"
+					>
+						{round.fooled} fooled
+					</motion.span>
+				</div>
 
-			{round.guesses.length === 0 ? (
-				<p className="font-mono text-sm text-muted-foreground">
-					Nobody's guessed yet.
-				</p>
-			) : (
-				// Faces, not rows. One row per guesser grew without limit and was
-				// what pushed this panel past the viewport in a big room; a
-				// wrapping grid of avatars holds a dozen people in two rows, and
-				// reads faster besides — you're scanning for who you got.
-				<ul className="flex flex-wrap gap-2">
-					<AnimatePresence initial={false}>
-						{round.guesses.map((row) => (
-							<motion.li
-								key={row.name}
-								initial={{ opacity: 0, scale: 0.8 }}
-								animate={{ opacity: 1, scale: 1 }}
-								transition={{ type: "spring", stiffness: 400, damping: 22 }}
-								className="relative"
-								title={`${row.name} — ${row.correct ? "got it" : "fooled"}`}
-							>
-								<Avatar className="size-9 border-2 border-rule">
-									{row.image && <AvatarImage src={row.image} alt={row.name} />}
-									<AvatarFallback>
-										{row.name.charAt(0).toUpperCase()}
-									</AvatarFallback>
-								</Avatar>
-								<span
-									className={`absolute -right-1 -bottom-1 grid size-4 place-items-center rounded-full border-2 border-rule ${
-										row.correct
-											? "bg-foreground text-background"
-											: "bg-brand text-brand-foreground"
-									}`}
+				{round.guesses.length === 0 ? (
+					<p className="font-mono text-sm text-muted-foreground">
+						Nobody's guessed yet.
+					</p>
+				) : (
+					<ul className="flex flex-wrap gap-2">
+						<AnimatePresence initial={false}>
+							{round.guesses.map((row) => (
+								<motion.li
+									key={row.name}
+									initial={{ opacity: 0, scale: 0.8 }}
+									animate={{ opacity: 1, scale: 1 }}
+									transition={{ type: "spring", stiffness: 400, damping: 22 }}
+									className="relative"
+									title={`${row.name} — ${row.correct ? "got it" : "fooled"}`}
 								>
-									{row.correct ? (
-										<CheckIcon className="size-2.5" />
-									) : (
-										<XIcon className="size-2.5" />
-									)}
-								</span>
-								<span className="sr-only">
-									{row.name} {row.correct ? "got it" : "was fooled"}
-								</span>
-							</motion.li>
-						))}
-					</AnimatePresence>
-				</ul>
-			)}
+									<Avatar className="size-9 border-2 border-rule">
+										{row.image && (
+											<AvatarImage src={row.image} alt={row.name} />
+										)}
+										<AvatarFallback>
+											{row.name.charAt(0).toUpperCase()}
+										</AvatarFallback>
+									</Avatar>
+									<span
+										className={`absolute -right-1 -bottom-1 grid size-4 place-items-center rounded-full border-2 border-rule ${
+											row.correct
+												? "bg-foreground text-background"
+												: "bg-brand text-brand-foreground"
+										}`}
+									>
+										{row.correct ? (
+											<CheckIcon className="size-2.5" />
+										) : (
+											<XIcon className="size-2.5" />
+										)}
+									</span>
+									<span className="sr-only">
+										{row.name} {row.correct ? "got it" : "was fooled"}
+									</span>
+								</motion.li>
+							))}
+						</AnimatePresence>
+					</ul>
+				)}
 
-			<p className="font-mono text-xs text-muted-foreground">
-				<XIcon className="mb-0.5 inline size-3 text-brand" /> fooled ·{" "}
-				<CheckIcon className="mb-0.5 inline size-3" /> got it
-				{round.waitingOn > 0 && ` · ${round.waitingOn} still to guess`}
-			</p>
+				<p className="font-mono text-xs text-muted-foreground">
+					<XIcon className="mb-0.5 inline size-3 text-brand" /> fooled ·{" "}
+					<CheckIcon className="mb-0.5 inline size-3" /> got it
+					{round.waitingOn > 0 && ` · ${round.waitingOn} still to guess`}
+				</p>
+			</div>
+			<BonusSection bonus={round.bonus} gameId={gameId} />
 		</div>
 	);
 }

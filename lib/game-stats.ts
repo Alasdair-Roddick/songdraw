@@ -2,7 +2,13 @@ import { and, eq, gte, notInArray } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { bankSong } from "@/lib/db/bank";
 import { gameMember } from "@/lib/db/game";
-import { guess, round, statSnapshot } from "@/lib/db/round";
+import {
+	bonusGuess,
+	bonusRound,
+	guess,
+	round,
+	statSnapshot,
+} from "@/lib/db/round";
 import { user } from "@/lib/db/schema";
 import { FOOL_POINTS } from "@/lib/game-rules";
 import { gameDate, previousDate } from "@/lib/round-date";
@@ -17,6 +23,7 @@ export type LeaderboardRow = {
 	points: number;
 	guessPoints: number;
 	foolPoints: number;
+	bonusPoints: number;
 	correct: number;
 	total: number;
 	currentStreak: number;
@@ -69,6 +76,7 @@ export async function leaderboardForGame(
 				points: 0,
 				guessPoints: 0,
 				foolPoints: 0,
+				bonusPoints: 0,
 				correct: 0,
 				total: 0,
 				currentStreak: 0,
@@ -104,6 +112,22 @@ export async function leaderboardForGame(
 			),
 		);
 
+	const bonusGuesses = await db
+		.select({
+			userId: bonusGuess.userId,
+			points: bonusGuess.points,
+		})
+		.from(bonusGuess)
+		.innerJoin(bonusRound, eq(bonusGuess.bonusRoundId, bonusRound.id))
+		.innerJoin(round, eq(bonusRound.roundId, round.id))
+		.where(
+			and(
+				eq(round.gameId, gameId),
+				start ? gte(round.roundDate, start) : undefined,
+				unsettled.length > 0 ? notInArray(round.id, unsettled) : undefined,
+			),
+		);
+
 	for (const entry of guesses) {
 		const guesser = rows.get(entry.guesserUserId);
 		if (guesser) {
@@ -118,6 +142,14 @@ export async function leaderboardForGame(
 				submitter.foolPoints += FOOL_POINTS;
 				submitter.points += FOOL_POINTS;
 			}
+		}
+	}
+
+	for (const entry of bonusGuesses) {
+		const row = rows.get(entry.userId);
+		if (row && entry.points > 0) {
+			row.bonusPoints += entry.points;
+			row.points += entry.points;
 		}
 	}
 

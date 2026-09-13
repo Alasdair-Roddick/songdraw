@@ -22,6 +22,13 @@
       "when": 1789198165441,
       "tag": "0002_admin_write_api",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1789272224244,
+      "tag": "0003_melted_speed_demon",
+      "breakpoints": true
     }
   ]
 }

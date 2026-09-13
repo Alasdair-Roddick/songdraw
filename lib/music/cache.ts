@@ -42,6 +42,10 @@ export function isAllowedAssetUrl(value: string | undefined) {
  * wins and later ones are a no-op.
  */
 export async function upsertTrackAsset(track: Track) {
+	const releaseYear = track.releaseDate
+		? new Date(track.releaseDate).getUTCFullYear()
+		: null;
+
 	const [inserted] = await db
 		.insert(trackAsset)
 		.values({
@@ -52,6 +56,7 @@ export async function upsertTrackAsset(track: Track) {
 			album: track.album,
 			artworkUrl: track.artworkUrl,
 			previewUrl: track.previewUrl,
+			releaseYear: Number.isFinite(releaseYear) ? releaseYear : null,
 		})
 		.onConflictDoNothing({
 			target: [trackAsset.provider, trackAsset.providerTrackId],
